@@ -5,10 +5,12 @@ import { db } from "@/db/client";
 import { users, orders, orderLegs, products, disputes } from "@/db/schema";
 import { eq, or, inArray, desc, asc, like } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth/authorization";
 import { verifyUser } from "@/lib/admin/verify-user";
 import { overrideLeg } from "@/lib/admin/override-leg";
 import { resolveDispute } from "@/lib/disputes/resolve-dispute";
 import { revalidatePath } from "next/cache";
+import { getSystemConsistencyReport } from "@/lib/orders/revenue";
 
 function getLegStatusPriority(status: string | null): number {
   const order: Record<string, number> = {
@@ -92,7 +94,7 @@ export type ReportData = {
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const rows = await db
     .select()
@@ -112,7 +114,7 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
 
 export async function searchUsers(query: string): Promise<AdminUser[]> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const pattern = `%${query}%`;
   const rows = await db
@@ -165,7 +167,7 @@ export async function verifyUserAction(
 
 export async function getAdminOrders(): Promise<AdminOrder[]> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const orderRows = await db
     .select()
@@ -209,10 +211,11 @@ export async function getAdminOrders(): Promise<AdminOrder[]> {
 
   return orderRows.map((order) => {
     const orderLegsList = legsByOrder.get(order.id) ?? [];
-    const statuses = orderLegsList.map((l) => l.status);
-    const allPaid = statuses.every((s) => s === "paid");
-    const allPending = statuses.every((s) => s === "pending");
-    const status = allPaid ? "completed" : allPending ? "pending" : "in_progress";
+    const allCancelled = orderLegsList.every((l) => l.status === "cancelled");
+    const nonCancelled = orderLegsList.filter((l) => l.status !== "cancelled");
+    const allPaid = nonCancelled.length > 0 && nonCancelled.every((l) => l.status === "paid");
+    const allPending = nonCancelled.every((l) => l.status === "pending");
+    const status = allCancelled ? "cancelled" : allPaid ? "completed" : allPending ? "pending" : "in_progress";
 
     return {
       id: order.id,
@@ -230,7 +233,7 @@ export async function getAdminOrders(): Promise<AdminOrder[]> {
 
 export async function searchOrders(query: string): Promise<AdminOrder[]> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const pattern = `%${query}%`;
   const allOrders = await getAdminOrders();
@@ -245,7 +248,7 @@ export async function searchOrders(query: string): Promise<AdminOrder[]> {
 
 export async function getOrderLegs(orderId: string): Promise<LegDetail[]> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const legRows = await db
     .select()
@@ -305,7 +308,7 @@ export async function overrideLegAction(
 
 export async function getAdminDisputes(): Promise<AdminDispute[]> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const disputeRows = await db
     .select()
@@ -379,9 +382,9 @@ export async function resolveDisputeAction(
   }
 }
 
-export async function getAdminReports(): Promise<ReportData> {
+export async function getAdminReports(): Promise<ReportData & { consistency: Awaited<ReturnType<typeof getSystemConsistencyReport>> }> {
   const admin = await getUser();
-  if (admin.role !== "admin") throw new Error("Admin authorization required");
+  requireAdmin(admin);
 
   const orderRows = await db
     .select({
@@ -427,6 +430,8 @@ export async function getAdminReports(): Promise<ReportData> {
     avgTimeByLegType.set(l.legType, entry);
   }
 
+  const consistency = await getSystemConsistencyReport();
+
   return {
     orderVolume: Array.from(volumeByDate.entries())
       .map(([date, count]) => ({ date, count }))
@@ -439,5 +444,6 @@ export async function getAdminReports(): Promise<ReportData> {
         legType,
         avgHours: Math.round((data.total / data.count) * 10) / 10,
       })),
+    consistency,
   };
 }

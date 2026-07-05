@@ -2,6 +2,8 @@ import { db as defaultDb } from "@/db/client";
 import { disputes, orderLegs, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { requireAdmin } from "@/lib/auth/authorization";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type ResolveDisputeInput = {
   disputeId: string;
@@ -31,9 +33,7 @@ export async function resolveDispute(
     throw new Error(`Admin user ${adminId} not found`);
   }
 
-  if (admin.role !== "admin") {
-    throw new Error("Only admins can resolve disputes");
-  }
+  requireAdmin({ ...admin, email: "", phone: null });
 
   if (!notes || notes.trim().length === 0) {
     throw new Error("Resolution notes are required");
@@ -70,6 +70,21 @@ export async function resolveDispute(
   if (!updated) {
     throw new Error("Failed to resolve dispute");
   }
+
+  await recordAuditEvent(
+    {
+      eventType: "dispute.resolved",
+      actorId: adminId,
+      resourceType: "dispute",
+      resourceId: disputeId,
+      details: {
+        resolution: resolutionStatus,
+        notes,
+        legId: dispute.orderLegId,
+      },
+    },
+    db,
+  );
 
   return {
     disputeId: updated.id,

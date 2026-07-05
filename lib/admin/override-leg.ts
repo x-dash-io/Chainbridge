@@ -2,6 +2,8 @@ import { db as defaultDb } from "@/db/client";
 import { orderLegs, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { requireAdmin } from "@/lib/auth/authorization";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type AdminOverrideLegInput = {
   adminId: string;
@@ -15,6 +17,8 @@ export type AdminOverrideLegResult = {
   status: string;
   reason: string;
 };
+
+const VALID_OVERRIDE_STATUSES = ["pending", "assigned", "in_progress", "completed", "paid", "cancelled"] as const;
 
 export async function overrideLeg(
   input: AdminOverrideLegInput,
@@ -31,9 +35,11 @@ export async function overrideLeg(
     .from(users)
     .where(eq(users.id, adminId));
 
-  if (!admin || admin.role !== "admin") {
-    throw new Error("Admin authorization required");
+  if (!admin) {
+    throw new Error(`Admin user ${adminId} not found`);
   }
+
+  requireAdmin({ ...admin, email: "", phone: null });
 
   const [leg] = await db
     .select()
@@ -44,15 +50,33 @@ export async function overrideLeg(
     throw new Error(`Leg ${legId} not found`);
   }
 
-  const validStatuses = ["pending", "assigned", "in_progress", "completed", "paid", "cancelled"] as const;
-  if (!validStatuses.includes(toStatus as typeof validStatuses[number])) {
+  if (!VALID_OVERRIDE_STATUSES.includes(toStatus as typeof VALID_OVERRIDE_STATUSES[number])) {
     throw new Error(`Invalid status: ${toStatus}`);
   }
 
+  const previousStatus = leg.status;
+
   await db
     .update(orderLegs)
-    .set({ status: toStatus as typeof validStatuses[number] })
+    .set({ status: toStatus as typeof VALID_OVERRIDE_STATUSES[number] })
     .where(eq(orderLegs.id, legId));
+
+  await recordAuditEvent(
+    {
+      eventType: "admin.override",
+      actorId: adminId,
+      resourceType: "order_leg",
+      resourceId: legId,
+      details: {
+        orderId: leg.orderId,
+        legType: leg.legType,
+        fromStatus: previousStatus,
+        toStatus,
+        reason,
+      },
+    },
+    db,
+  );
 
   return { legId, status: toStatus, reason };
 }

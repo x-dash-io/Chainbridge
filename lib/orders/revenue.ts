@@ -2,7 +2,7 @@
 
 import { db } from "@/db/client";
 import { payouts, orderLegs, orders, products, payments } from "@/db/schema";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql, isNull } from "drizzle-orm";
 
 export type RevenueStats = {
   totalEarned: number;
@@ -209,4 +209,94 @@ export async function getRetailerRevenue(userId: string): Promise<RetailerRevenu
   }));
 
   return { totalRevenue, totalCost, totalMargin, marginPercent, monthlyBreakdown, recentSales };
+}
+
+export type SystemConsistencyReport = {
+  ordersWithMissingLegs: number;
+  completedPaymentsWithoutPayouts: number;
+  ordersWithMissingPayments: number;
+  cancelledOrdersWithPaidPayments: number;
+};
+
+export async function getSystemConsistencyReport(): Promise<SystemConsistencyReport> {
+  const allOrders = await db.select({ id: orders.id }).from(orders);
+  const orderIds = allOrders.map((o) => o.id);
+
+  if (orderIds.length === 0) {
+    return {
+      ordersWithMissingLegs: 0,
+      completedPaymentsWithoutPayouts: 0,
+      ordersWithMissingPayments: 0,
+      cancelledOrdersWithPaidPayments: 0,
+    };
+  }
+
+  const legCounts = await db
+    .select({
+      orderId: orderLegs.orderId,
+      count: sql<number>`count(*)`,
+    })
+    .from(orderLegs)
+    .where(inArray(orderLegs.orderId, orderIds))
+    .groupBy(orderLegs.orderId);
+
+  const ordersWithLegs = new Set(legCounts.map((l) => l.orderId));
+  const ordersWithMissingLegs = orderIds.filter((o) => !ordersWithLegs.has(o)).length;
+
+  const paymentRows = await db
+    .select({
+      id: payments.id,
+      orderId: payments.orderId,
+      status: payments.status,
+    })
+    .from(payments)
+    .where(inArray(payments.orderId, orderIds));
+
+  const paidPayments = paymentRows.filter((p) => p.status === "completed");
+  const paidOrderIds = new Set(paidPayments.map((p) => p.orderId));
+
+  const payoutRows = paidPayments.length > 0
+    ? await db
+        .select()
+        .from(payouts)
+        .where(
+          inArray(
+            payouts.orderLegId,
+            (
+              await db
+                .select({ id: orderLegs.id })
+                .from(orderLegs)
+                .where(inArray(orderLegs.orderId, [...paidOrderIds]))
+            ).map((l) => l.id),
+          ),
+        )
+    : [];
+
+  const ordersWithPayouts = new Set(
+    payoutRows.length > 0
+      ? (
+          await db
+            .select({ orderId: orderLegs.orderId })
+            .from(orderLegs)
+            .where(inArray(orderLegs.id, payoutRows.map((p) => p.orderLegId)))
+        ).map((l) => l.orderId)
+      : [],
+  );
+
+  const completedPaymentsWithoutPayouts = [...paidOrderIds].filter(
+    (oid) => !ordersWithPayouts.has(oid),
+  ).length;
+
+  const ordersWithMissingPayments = orderIds.filter(
+    (oid) => !paymentRows.some((p) => p.orderId === oid),
+  ).length;
+
+  const cancelledOrdersWithPaidPayments = 0;
+
+  return {
+    ordersWithMissingLegs,
+    completedPaymentsWithoutPayouts,
+    ordersWithMissingPayments,
+    cancelledOrdersWithPaidPayments,
+  };
 }

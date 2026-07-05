@@ -11,7 +11,7 @@ function makeMockDb() {
   const fromBuilder = vi.fn();
   const selectBuilder = vi.fn();
   const updateBuilder = vi.fn();
-  const insertBuilder = vi.fn();
+  const insertBuilder = vi.fn().mockReturnValue({ values: vi.fn() });
 
   selectBuilder.mockReturnValue({ from: fromBuilder });
   fromBuilder.mockReturnValue({ where: whereBuilder });
@@ -23,7 +23,7 @@ function makeMockDb() {
       select: selectBuilder,
       update: updateBuilder,
       insert: insertBuilder,
-    },
+    } as any,
     whereBuilder,
     setBuilder,
     fromBuilder,

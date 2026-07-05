@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { orderLegs, orders, products, users, payouts } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
+import { requireConsumerOrRetailer } from "@/lib/auth/authorization";
 import { createOrder } from "@/lib/orders/create-order";
 import { cancelOrder } from "@/lib/orders/cancel-order";
 import { revalidatePath } from "next/cache";
@@ -32,9 +33,7 @@ export async function createOrderAction(
 ): Promise<CreateOrderState> {
   try {
     const user = await getUser();
-    if (user.role !== "consumer" && user.role !== "retailer") {
-      return { error: "Only consumers and retailers can place orders." };
-    }
+    requireConsumerOrRetailer(user);
 
     const parsed = CreateOrderSchema.safeParse({
       productId: formData.get("productId"),
@@ -183,9 +182,7 @@ export async function confirmReceiptAction(
 ): Promise<{ error?: string; success?: boolean } | null> {
   try {
     const user = await getUser();
-    if (user.role !== "consumer" && user.role !== "retailer") {
-      return { error: "Only consumers and retailers can confirm receipt." };
-    }
+    requireConsumerOrRetailer(user);
 
     const legId = formData.get("legId");
     if (typeof legId !== "string") return { error: "Invalid leg." };
@@ -252,9 +249,7 @@ export async function cancelOrderAction(
 ): Promise<{ error?: string; success?: boolean } | null> {
   try {
     const user = await getUser();
-    if (user.role !== "consumer" && user.role !== "retailer") {
-      return { error: "Only consumers and retailers can cancel orders." };
-    }
+    requireConsumerOrRetailer(user);
 
     const orderId = formData.get("orderId");
     if (typeof orderId !== "string") return { error: "Invalid order." };

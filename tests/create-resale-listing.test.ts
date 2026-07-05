@@ -107,7 +107,7 @@ describe("createResaleListing", () => {
         },
         m.db,
       ),
-    ).rejects.toThrow("not authorized");
+    ).rejects.toThrow("Only retailers");
   });
 
   it("throws if not externally sourced and sourceOrderId is missing", async () => {

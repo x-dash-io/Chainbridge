@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { products, orders, orderLegs, users, payments } from "@/db/schema";
 import { eq, inArray, sum, and, sql } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
+import { requireRetailer } from "@/lib/auth/authorization";
 import { createResaleListing } from "./create-resale-listing";
 import { revalidatePath } from "next/cache";
 
@@ -32,9 +33,7 @@ export async function createResaleListingAction(
 ): Promise<CreateResaleListingState> {
   try {
     const user = await getUser();
-    if (user.role !== "retailer") {
-      return { error: "Only retailers can create resale listings." };
-    }
+    requireRetailer(user);
 
     const rawExternallySourced = formData.get("externallySourced");
     const externallySourced = rawExternallySourced === "true" || rawExternallySourced === "on";

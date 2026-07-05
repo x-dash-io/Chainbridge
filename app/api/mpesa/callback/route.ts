@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processCallback } from "@/lib/mpesa/verify-callback";
+import { processCallback, verifyCallbackOrigin } from "@/lib/mpesa/verify-callback";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export async function POST(request: NextRequest) {
   try {
+    verifyCallbackOrigin(request);
+
     let body: unknown;
     try {
       body = await request.json();
@@ -35,8 +38,13 @@ export async function POST(request: NextRequest) {
     );
   } catch (err) {
     console.error("Callback processing error:", err);
+    const message = err instanceof Error ? err.message : "Internal error";
+
     return NextResponse.json(
-      { ResultCode: 1, ResultDesc: "Internal error" },
+      {
+        ResultCode: 1,
+        ResultDesc: message,
+      },
       { status: 200 },
     );
   }

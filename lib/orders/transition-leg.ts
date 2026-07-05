@@ -2,6 +2,7 @@ import { db as defaultDb } from "@/db/client";
 import { orderLegs, legStatusEnum } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 type LegStatus = (typeof legStatusEnum)[number];
 
@@ -68,6 +69,22 @@ export async function transitionLeg(
     .update(orderLegs)
     .set(updates)
     .where(eq(orderLegs.id, legId));
+
+  await recordAuditEvent(
+    {
+      eventType: "leg.transitioned",
+      actorId: actorUserId,
+      resourceType: "order_leg",
+      resourceId: legId,
+      details: {
+        orderId: leg.orderId,
+        legType: leg.legType,
+        fromStatus: currentStatus,
+        toStatus,
+      },
+    },
+    db,
+  );
 
   return { legId, status: toStatus };
 }

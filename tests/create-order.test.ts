@@ -32,10 +32,12 @@ function makeMockDb() {
     returningResult = rows;
   }
 
+  const auditInsertBuilder = vi.fn().mockReturnValue({ values: vi.fn() });
+
   return {
     db: {
       select: selectBuilder,
-      insert: vi.fn(),
+      insert: auditInsertBuilder,
       update: updateBuilder,
       transaction,
     } as any,

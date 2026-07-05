@@ -2,22 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { getUser } from "@/lib/auth";
-
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-const RATE_LIMIT_MAX = 20;
-
-const store = new Map<string, number[]>();
-
-function checkRateLimit(key: string): boolean {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  let timestamps = store.get(key) ?? [];
-  timestamps = timestamps.filter((t) => t > windowStart);
-  if (timestamps.length >= RATE_LIMIT_MAX) return false;
-  timestamps.push(now);
-  store.set(key, timestamps);
-  return true;
-}
+import { checkRateLimit } from "@/lib/rate-limit/shared";
 
 export type UploadSignatureResult =
   | {
@@ -33,7 +18,7 @@ export async function getUploadSignature(): Promise<UploadSignatureResult> {
   try {
     const user = await getUser();
 
-    if (!checkRateLimit(`upload:${user.id}`)) {
+    if (!checkRateLimit(`upload:${user.id}`, "upload-signature")) {
       return { error: "Rate limit exceeded. Maximum 20 uploads per hour." };
     }
 

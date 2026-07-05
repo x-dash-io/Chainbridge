@@ -153,6 +153,18 @@ export const payouts = pgTable("payouts", {
   paidAt: timestamp("paid_at"),
 });
 
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  actorId: uuid("actor_id")
+    .references(() => users.id)
+    .notNull(),
+  resourceType: varchar("resource_type", { length: 50 }).notNull(),
+  resourceId: uuid("resource_id").notNull(),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const disputes = pgTable("disputes", {
   id: uuid("id").primaryKey().defaultRandom(),
   orderLegId: uuid("order_leg_id")

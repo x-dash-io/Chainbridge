@@ -2,6 +2,7 @@ import { db as defaultDb } from "@/db/client";
 import { orders, orderLegs, products } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type CreateOrderInput = {
   consumerId: string;
@@ -125,6 +126,22 @@ export async function createOrder(
 
     return order;
   });
+
+  await recordAuditEvent(
+    {
+      eventType: "order.created",
+      actorId: consumerId,
+      resourceType: "order",
+      resourceId: result.id,
+      details: {
+        productId,
+        quantity,
+        totalAmount,
+        legsCount: 1 + legAmounts.length,
+      },
+    },
+    db,
+  );
 
   return { orderId: result.id, totalAmount };
 }

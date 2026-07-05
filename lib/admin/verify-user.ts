@@ -2,6 +2,8 @@ import { db as defaultDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { requireAdmin } from "@/lib/auth/authorization";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type VerifyUserInput = {
   adminId: string;
@@ -25,9 +27,11 @@ export async function verifyUser(
     .from(users)
     .where(eq(users.id, adminId));
 
-  if (!admin || admin.role !== "admin") {
-    throw new Error("Admin authorization required");
+  if (!admin) {
+    throw new Error(`Admin user ${adminId} not found`);
   }
+
+  requireAdmin({ ...admin, email: "", phone: null });
 
   if (adminId === targetUserId) {
     throw new Error("Admins cannot verify themselves");
@@ -46,6 +50,21 @@ export async function verifyUser(
     .update(users)
     .set({ verified })
     .where(eq(users.id, targetUserId));
+
+  await recordAuditEvent(
+    {
+      eventType: "admin.verify_user",
+      actorId: adminId,
+      resourceType: "user",
+      resourceId: targetUserId,
+      details: {
+        verified,
+        targetEmail: targetUser.email,
+        targetRole: targetUser.role,
+      },
+    },
+    db,
+  );
 
   return { userId: targetUserId, verified };
 }

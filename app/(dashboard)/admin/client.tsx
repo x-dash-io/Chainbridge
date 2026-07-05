@@ -6,11 +6,13 @@ import { UsersTab } from "@/components/admin/users-tab";
 import { OrdersTab } from "@/components/admin/orders-tab";
 import { DisputesTab } from "@/components/admin/disputes-tab";
 import { ReportsTab } from "@/components/admin/reports-tab";
+import { AuditTab } from "@/components/admin/audit-tab";
 
 const tabs = [
   { id: "users", label: "Users" },
   { id: "orders", label: "Orders" },
   { id: "disputes", label: "Disputes" },
+  { id: "audit", label: "Audit Log" },
   { id: "reports", label: "Reporting" },
 ] as const;
 
@@ -43,6 +45,7 @@ export function AdminDashboardClient() {
       {activeTab === "users" && <UsersTab />}
       {activeTab === "orders" && <OrdersTab />}
       {activeTab === "disputes" && <DisputesTab />}
+      {activeTab === "audit" && <AuditTab />}
       {activeTab === "reports" && <ReportsTab />}
     </div>
   );

@@ -2,6 +2,7 @@ import { db as defaultDb } from "@/db/client";
 import { products, orders, orderLegs, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { requireRetailer } from "@/lib/auth/authorization";
 
 export type CreateResaleListingInput = {
   retailerId: string;
@@ -49,9 +50,7 @@ export async function createResaleListing(
     throw new Error(`User ${retailerId} not found`);
   }
 
-  if (user.role !== "retailer") {
-    throw new Error(`User ${retailerId} is not authorized to create resale listings`);
-  }
+  requireRetailer({ ...user, email: "", phone: null });
 
   // 2. Validate listing source
   if (!externallySourced && !sourceOrderId) {

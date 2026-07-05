@@ -2,6 +2,8 @@ import { db as defaultDb } from "@/db/client";
 import { disputes, orderLegs, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { isConsumerOrRetailer } from "@/lib/auth/authorization";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type RaiseDisputeInput = {
   legId: string;
@@ -43,7 +45,7 @@ export async function raiseDispute(
     throw new Error(`Leg ${legId} not found`);
   }
 
-  const isConsumer = raisedByUser.role === "consumer" || raisedByUser.role === "retailer";
+  const isConsumer = isConsumerOrRetailer(raisedByUser.role);
   const isAssignedUser = leg.assignedUserId === raisedByUserId;
 
   if (!isConsumer && !isAssignedUser) {
@@ -68,6 +70,22 @@ export async function raiseDispute(
       status: "open",
     })
     .returning({ id: disputes.id });
+
+  await recordAuditEvent(
+    {
+      eventType: "dispute.raised",
+      actorId: raisedByUserId,
+      resourceType: "dispute",
+      resourceId: dispute.id,
+      details: {
+        legId,
+        orderId: leg.orderId,
+        legType: leg.legType,
+        reason,
+      },
+    },
+    db,
+  );
 
   return { disputeId: dispute.id, legId, status: "open" };
 }

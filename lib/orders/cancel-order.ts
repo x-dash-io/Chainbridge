@@ -2,6 +2,7 @@ import { db as defaultDb } from "@/db/client";
 import { orders, orderLegs, payments, payouts, products } from "@/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type CancelOrderInput = {
   orderId: string;
@@ -106,6 +107,22 @@ export async function cancelOrder(
       })
       .where(eq(products.id, order.productId));
   });
+
+  await recordAuditEvent(
+    {
+      eventType: "leg.transitioned",
+      actorId: actorUserId,
+      resourceType: "order",
+      resourceId: orderId,
+      details: {
+        action: "cancel",
+        cancelledLegIds: cancellableLegIds,
+        paymentCancelled: !!payment,
+        inventoryRestored: true,
+      },
+    },
+    db,
+  );
 
   return { orderId, cancelled: true };
 }

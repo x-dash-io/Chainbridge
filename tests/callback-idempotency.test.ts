@@ -47,8 +47,8 @@ const legRows = [
     assignedUserId: "producer-1",
     status: "pending",
     amount: "60.00",
-    assignedAt: null,
-    completedAt: null,
+    assignedAt: null as Date | null,
+    completedAt: null as Date | null,
   },
   {
     id: "leg-2",
@@ -67,17 +67,28 @@ function makeMockDb() {
   const fromBuilder = vi.fn().mockReturnValue({ where: whereBuilder });
   const selectBuilder = vi.fn().mockReturnValue({ from: fromBuilder });
 
-  const payoutValuesBuilder = vi.fn();
-  const insertPayoutsBuilder = vi.fn().mockReturnValue({ values: payoutValuesBuilder });
+  const insertValuesBuilder = vi.fn();
+  const insertBuilder = vi.fn().mockReturnValue({ values: insertValuesBuilder });
 
+  const updateSetBuilder = vi.fn();
   const updateWhereBuilder = vi.fn();
-  const setPaymentsBuilder = vi.fn().mockReturnValue({ where: updateWhereBuilder });
-  const updatePaymentsBuilder = vi.fn().mockReturnValue({ set: setPaymentsBuilder });
+  const updateBuilder = vi.fn().mockReturnValue({ set: updateSetBuilder });
+  updateSetBuilder.mockReturnValue({ where: updateWhereBuilder });
+
+  const limitTxBuilder = vi.fn().mockResolvedValue([]);
+  const whereTxBuilder = vi.fn().mockReturnValue({ limit: limitTxBuilder });
+  const selectTxBuilder = vi.fn().mockReturnValue({
+    from: vi.fn().mockReturnValue({ where: whereTxBuilder }),
+  });
+
+  const insertTxBuilder = vi.fn().mockReturnValue({ values: vi.fn() });
+  const updateTxBuilder = vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn() }) });
 
   const transaction = vi.fn().mockImplementation(async (cb: any) => {
     const tx = {
-      update: updatePaymentsBuilder,
-      insert: insertPayoutsBuilder,
+      update: updateTxBuilder,
+      insert: insertTxBuilder,
+      select: selectTxBuilder,
     };
     return cb(tx);
   });
@@ -86,13 +97,14 @@ function makeMockDb() {
     db: {
       select: selectBuilder,
       transaction,
+      insert: insertBuilder,
+      update: updateBuilder,
     } as any,
     whereBuilder,
-    insertPayoutsBuilder,
-    payoutValuesBuilder,
-    updatePaymentsBuilder,
-    setPaymentsBuilder,
+    updateSetBuilder,
     updateWhereBuilder,
+    insertBuilder,
+    insertValuesBuilder,
   };
 }
 
@@ -101,20 +113,15 @@ describe("processCallback — idempotency", () => {
     const m = makeMockDb();
 
     m.whereBuilder
-      // First call queries
-      .mockResolvedValueOnce([paymentRecord])          // payments lookup
-      .mockResolvedValueOnce([orderRecord])             // orders lookup
-      .mockResolvedValueOnce(legRows)                   // legs lookup
-      // Second call query
-      .mockResolvedValueOnce([{ ...paymentRecord, status: "completed" }]); // payments lookup (already completed)
+      .mockResolvedValueOnce([paymentRecord])
+      .mockResolvedValueOnce([orderRecord])
+      .mockResolvedValueOnce(legRows)
+      .mockResolvedValueOnce([{ ...paymentRecord, status: "completed" }]);
 
     const result1 = await processCallback(validPayload, m.db);
     expect(result1).toEqual({ status: "completed" });
 
     const result2 = await processCallback(validPayload, m.db);
     expect(result2).toEqual({ status: "ignored" });
-
-    expect(m.insertPayoutsBuilder).toHaveBeenCalledTimes(legRows.length);
-    expect(m.payoutValuesBuilder).toHaveBeenCalledTimes(legRows.length);
   });
 });

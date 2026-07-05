@@ -5,24 +5,13 @@ import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { initiateStkPush } from "@/lib/mpesa/stk-push";
+import { checkRateLimit } from "@/lib/rate-limit/shared";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 const StkPushRequestSchema = z.object({
   orderId: z.string().uuid(),
   phoneNumber: z.string().regex(/^2547\d{8}$/, "Must be a valid Safaricom number (2547XXXXXXXX)"),
 });
-
-const rateLimitStore = new Map<string, number[]>();
-
-function checkRateLimit(userId: string, maxRequests = 5, windowMs = 3600000): void {
-  const now = Date.now();
-  const timestamps = rateLimitStore.get(userId) ?? [];
-  const recent = timestamps.filter((t) => now - t < windowMs);
-  if (recent.length >= maxRequests) {
-    throw new Error("Rate limit exceeded. Please try again later.");
-  }
-  recent.push(now);
-  rateLimitStore.set(userId, recent);
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +30,13 @@ export async function POST(request: NextRequest) {
 
     if (!appUser) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    if (appUser.role !== "consumer" && appUser.role !== "retailer") {
+      return NextResponse.json(
+        { error: "Only consumers and retailers can initiate payment" },
+        { status: 403 },
+      );
     }
 
     let body: unknown;
@@ -76,23 +72,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (appUser.role !== "consumer" && appUser.role !== "retailer") {
+    if (!checkRateLimit(`stk-push:${appUser.id}`, "stk-push")) {
       return NextResponse.json(
-        { error: "Only consumers and retailers can initiate payment" },
-        { status: 403 },
+        { error: "Rate limit exceeded. Maximum 5 attempts per hour." },
+        { status: 429 },
       );
     }
 
-    checkRateLimit(appUser.id);
-
-    const result = await initiateStkPush({ orderId, phoneNumber });
+    const result = await initiateStkPush({ orderId, phoneNumber, actorUserId: appUser.id });
 
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
-    if (message.includes("Rate limit exceeded")) {
-      return NextResponse.json({ error: message }, { status: 429 });
-    }
     console.error("STK push error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

@@ -2,10 +2,13 @@ import { db as defaultDb } from "@/db/client";
 import { payments, orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
+import { getRequiredEnv, getOptionalEnv } from "@/lib/config/validate";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type StkPushInput = {
   orderId: string;
   phoneNumber: string;
+  actorUserId?: string;
 };
 
 export type StkPushResult = {
@@ -96,6 +99,14 @@ export async function initiateStkPush(
 ): Promise<StkPushResult> {
   const { orderId, phoneNumber } = input;
 
+  const consumerKey = getRequiredEnv("MPESA_CONSUMER_KEY");
+  const consumerSecret = getRequiredEnv("MPESA_CONSUMER_SECRET");
+  const passkey = getRequiredEnv("MPESA_PASSKEY");
+  const shortCode = getRequiredEnv("MPESA_SHORTCODE");
+  const baseUrl = getOptionalEnv("NEXT_PUBLIC_APP_URL") ?? "https://sandbox.safaricom.co.ke";
+  const callbackUrl =
+    getOptionalEnv("MPESA_CALLBACK_URL") ?? `${baseUrl}/api/mpesa/callback`;
+
   const [order] = await db
     .select()
     .from(orders)
@@ -104,14 +115,6 @@ export async function initiateStkPush(
   if (!order) {
     throw new Error(`Order ${orderId} not found`);
   }
-
-  const consumerKey = process.env.MPESA_CONSUMER_KEY!;
-  const consumerSecret = process.env.MPESA_CONSUMER_SECRET!;
-  const passkey = process.env.MPESA_PASSKEY!;
-  const shortCode = process.env.MPESA_SHORTCODE!;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://sandbox.safaricom.co.ke";
-  const callbackUrl =
-    process.env.MPESA_CALLBACK_URL ?? `${baseUrl}/api/mpesa/callback`;
 
   const accessToken = await getAccessToken(consumerKey, consumerSecret);
   const darajaRes = await sendStkPush(
@@ -134,6 +137,21 @@ export async function initiateStkPush(
     amount: order.totalAmount,
     status: "initiated",
   });
+
+  await recordAuditEvent(
+    {
+      eventType: "payment.initiated",
+      actorId: input.actorUserId ?? input.orderId,
+      resourceType: "payment",
+      resourceId: darajaRes.CheckoutRequestID,
+      details: {
+        orderId,
+        amount: order.totalAmount,
+        checkoutRequestId: darajaRes.CheckoutRequestID,
+      },
+    },
+    db,
+  );
 
   return {
     checkoutRequestId: darajaRes.CheckoutRequestID,

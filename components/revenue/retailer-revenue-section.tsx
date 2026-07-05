@@ -9,7 +9,7 @@ export function RetailerRevenueSection({ data }: { data: RetailerRevenueStats })
         Revenue Overview
       </h2>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg border border-border bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <p className="text-xs text-muted">Total Revenue</p>
           <p className="mt-1 text-xl font-semibold tracking-tight text-foreground">
@@ -28,10 +28,24 @@ export function RetailerRevenueSection({ data }: { data: RetailerRevenueStats })
             KES {data.totalMargin.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
+      </div>
+      <div className="grid grid-cols-4 gap-4">
         <div className="rounded-lg border border-border bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <p className="text-xs text-muted">Margin %</p>
           <p className={`mt-1 text-xl font-semibold tracking-tight ${data.marginPercent >= 0 ? "text-primary" : "text-destructive"}`}>
             {data.marginPercent.toFixed(1)}%
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <p className="text-xs text-muted">Pending Payout</p>
+          <p className="mt-1 text-xl font-semibold tracking-tight text-badge-warning-fg">
+            KES {data.pendingPayout.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <p className="text-xs text-muted">Received Payout</p>
+          <p className="mt-1 text-xl font-semibold tracking-tight text-primary">
+            KES {data.receivedPayout.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
       </div>

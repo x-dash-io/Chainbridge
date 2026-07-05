@@ -2,7 +2,7 @@
 
 import { db } from "@/db/client";
 import { payouts, orderLegs, orders, products, payments } from "@/db/schema";
-import { eq, and, inArray, sql, isNull } from "drizzle-orm";
+import { eq, and, inArray, sql, lt } from "drizzle-orm";
 
 export type RevenueStats = {
   totalEarned: number;
@@ -20,7 +20,49 @@ export type RevenueStats = {
   }[];
 };
 
+const AUTO_RELEASE_DAYS = 7;
+
+async function autoReleaseStalePayouts(userId: string) {
+  const payoutRows = await db
+    .select({
+      payoutId: payouts.id,
+      payoutStatus: payouts.status,
+      legId: orderLegs.id,
+      legStatus: orderLegs.status,
+      paymentCreatedAt: payments.createdAt,
+    })
+    .from(payouts)
+    .innerJoin(orderLegs, eq(payouts.orderLegId, orderLegs.id))
+    .innerJoin(orders, eq(orderLegs.orderId, orders.id))
+    .innerJoin(payments, eq(payments.orderId, orders.id))
+    .where(
+      and(
+        eq(payouts.userId, userId),
+        eq(payouts.status, "owed"),
+        eq(orderLegs.status, "completed"),
+        eq(payments.status, "completed"),
+        lt(
+          payments.createdAt,
+          new Date(Date.now() - AUTO_RELEASE_DAYS * 24 * 60 * 60 * 1000),
+        ),
+      ),
+    );
+
+  for (const row of payoutRows) {
+    await db.update(orderLegs).set({ status: "paid" }).where(eq(orderLegs.id, row.legId));
+    await db
+      .update(payouts)
+      .set({ status: "paid", paidAt: new Date() })
+      .where(eq(payouts.id, row.payoutId));
+  }
+
+  if (payoutRows.length > 0) {
+    console.log(`Auto-released ${payoutRows.length} stale payouts for user ${userId}`);
+  }
+}
+
 export async function getServiceProviderRevenue(userId: string): Promise<RevenueStats> {
+  await autoReleaseStalePayouts(userId);
   const allPayouts = await db
     .select()
     .from(payouts)
@@ -100,6 +142,8 @@ export type RetailerRevenueStats = {
   totalCost: number;
   totalMargin: number;
   marginPercent: number;
+  pendingPayout: number;
+  receivedPayout: number;
   monthlyBreakdown: { month: string; revenue: number; cost: number }[];
   recentSales: {
     orderId: string;
@@ -170,18 +214,43 @@ export async function getRetailerRevenue(userId: string): Promise<RetailerRevenu
     }
   }
 
+  // Fetch raw_supply leg amounts for each sale (what the retailer actually receives)
+  const orderIds = salesRows.map((s) => s.orderId);
+  const rawSupplyAmounts = orderIds.length > 0
+    ? await db
+        .select({
+          orderId: orderLegs.orderId,
+          amount: orderLegs.amount,
+        })
+        .from(orderLegs)
+        .where(
+          and(
+            inArray(orderLegs.orderId, orderIds),
+            eq(orderLegs.legType, "raw_supply"),
+          ),
+        )
+    : [];
+  const rawSupplyByOrder = new Map(rawSupplyAmounts.map((l) => [l.orderId, Number(l.amount)]));
+
   const monthlyMap = new Map<string, { revenue: number; cost: number }>();
   let totalRevenue = 0;
   let totalCost = 0;
 
+  const productSaleCount = new Map<string, number>();
   for (const sale of salesRows) {
-    const rev = Number(sale.totalAmount);
+    productSaleCount.set(
+      sale.productId,
+      (productSaleCount.get(sale.productId) ?? 0) + 1,
+    );
+  }
+
+  for (const sale of salesRows) {
+    const rev = rawSupplyByOrder.get(sale.orderId) ?? Number(sale.totalAmount);
     totalRevenue += rev;
 
     const prodCost = productCostMap.get(sale.productId) ?? 0;
-    const costShare = salesRows.filter((s) => s.productId === sale.productId).length > 0
-      ? prodCost / salesRows.filter((s) => s.productId === sale.productId).length
-      : 0;
+    const count = productSaleCount.get(sale.productId) ?? 1;
+    const costShare = prodCost / count;
     totalCost += costShare;
 
     const d = sale.createdAt ?? new Date();
@@ -203,15 +272,40 @@ export async function getRetailerRevenue(userId: string): Promise<RetailerRevenu
   const totalMargin = totalRevenue - totalCost;
   const marginPercent = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
 
+  // Fetch the retailer's actual payouts (owed vs paid)
+  const retailerLegs = await db
+    .select({ id: orderLegs.id })
+    .from(orderLegs)
+    .where(
+      and(
+        eq(orderLegs.legType, "raw_supply"),
+        eq(orderLegs.assignedUserId, userId),
+      ),
+    );
+  const retailerLegIds = retailerLegs.map((l) => l.id);
+  let pendingPayout = 0;
+  let receivedPayout = 0;
+  if (retailerLegIds.length > 0) {
+    const retailerPayouts = await db
+      .select()
+      .from(payouts)
+      .where(inArray(payouts.orderLegId, retailerLegIds));
+    for (const p of retailerPayouts) {
+      const amt = Number(p.amount);
+      if (p.status === "owed") pendingPayout += amt;
+      else if (p.status === "paid") receivedPayout += amt;
+    }
+  }
+
   const recentSales = salesRows.slice(0, 10).map((s) => ({
     orderId: s.orderId,
     productName: productNameMap.get(s.productId) ?? "Unknown",
     quantity: s.quantity,
-    amount: s.totalAmount,
+    amount: (rawSupplyByOrder.get(s.orderId) ?? Number(s.totalAmount)).toFixed(2),
     date: (s.createdAt ?? new Date()).toISOString(),
   }));
 
-  return { totalRevenue, totalCost, totalMargin, marginPercent, monthlyBreakdown, recentSales };
+  return { totalRevenue, totalCost, totalMargin, marginPercent, pendingPayout, receivedPayout, monthlyBreakdown, recentSales };
 }
 
 export type SystemConsistencyReport = {

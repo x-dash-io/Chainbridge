@@ -1,0 +1,10 @@
+<svg width="220" height="48" viewBox="0 0 220 48" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(2,8)">
+    <path d="M5,21 C 9,9 23,9 27,21" fill="none" stroke="#1B5E20" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="5" cy="21" r="3.2" fill="#1B5E20"/>
+    <circle cx="12.3" cy="11.4" r="3" fill="#1B5E20"/>
+    <circle cx="19.7" cy="11.4" r="3" fill="#1B5E20"/>
+    <circle cx="27" cy="21" r="3.4" fill="#F9A825"/>
+  </g>
+  <text x="42" y="30" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="22" fill="#1A1A1A">Chainbridge</text>
+</svg>

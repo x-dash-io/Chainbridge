@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782943862612,
+      "tag": "0000_elite_vance_astro",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782943900000,
+      "tag": "0001_purple_rocket",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782979612364,
+      "tag": "0002_add_checkout_request_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783194681446,
+      "tag": "0003_add_cancelled_leg_status",
+      "breakpoints": true
+    }
+  ]
+}

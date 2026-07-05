@@ -1,0 +1,1 @@
+ALTER TYPE "public"."leg_status" ADD VALUE 'cancelled';

@@ -84,6 +84,7 @@ export async function createOrderAction(
     });
 
     revalidatePath("/consumer");
+    revalidatePath("/retailer");
     return { orderId: result.orderId, totalAmount: result.totalAmount };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create order." };

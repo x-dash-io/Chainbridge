@@ -19,6 +19,7 @@ const CreateResaleListingSchema = z.object({
   imageUrl: z.string().optional(),
   imagePublicId: z.string().optional(),
   sourceOrderId: z.string().uuid().optional().or(z.literal("")),
+  purchaseCost: z.coerce.number().positive().optional(),
 });
 
 export type CreateResaleListingState = {
@@ -38,6 +39,11 @@ export async function createResaleListingAction(
     const rawExternallySourced = formData.get("externallySourced");
     const externallySourced = rawExternallySourced === "true" || rawExternallySourced === "on";
 
+    const rawPurchaseCost = formData.get("purchaseCost");
+    const purchaseCost = rawPurchaseCost && rawPurchaseCost !== ""
+      ? Number(rawPurchaseCost)
+      : undefined;
+
     const parsed = CreateResaleListingSchema.safeParse({
       name: formData.get("name"),
       category: formData.get("category"),
@@ -48,6 +54,7 @@ export async function createResaleListingAction(
       imageUrl: formData.get("imageUrl") || undefined,
       imagePublicId: formData.get("imagePublicId") || undefined,
       sourceOrderId: formData.get("sourceOrderId") || undefined,
+      purchaseCost,
     });
 
     if (!parsed.success) {
@@ -67,6 +74,7 @@ export async function createResaleListingAction(
       imagePublicId: parsed.data.imagePublicId,
       sourceOrderId: parsed.data.sourceOrderId || undefined,
       externallySourced,
+      purchaseCost: parsed.data.purchaseCost,
     });
 
     revalidatePath("/retailer");
@@ -191,6 +199,7 @@ export async function getRetailerResaleListings() {
       status: products.status,
       externallySourced: products.externallySourced,
       sourceOrderId: products.sourceOrderId,
+      purchaseCost: products.purchaseCost,
       createdAt: products.createdAt,
     })
     .from(products)
@@ -245,16 +254,15 @@ export async function getRetailerResaleListings() {
   }
 
   return resaleProducts.map((product) => {
-    const costAmount = product.sourceOrderId
-      ? parseFloat(sourceOrdersMap.get(product.sourceOrderId) ?? "0")
-      : 0;
+    const costAmount = product.externallySourced
+      ? parseFloat(product.purchaseCost ?? "0")
+      : product.sourceOrderId
+        ? parseFloat(sourceOrdersMap.get(product.sourceOrderId) ?? "0")
+        : 0;
 
     const unitsSold = salesMap.get(product.id) ?? 0;
     const revenueAmount = unitsSold * parseFloat(product.pricePerUnit);
-
-    const marginAmount = product.externallySourced
-      ? null
-      : revenueAmount - costAmount;
+    const marginAmount = revenueAmount - costAmount;
 
     return {
       id: product.id,
@@ -267,12 +275,139 @@ export async function getRetailerResaleListings() {
       externallySourced: product.externallySourced,
       sourceOrderId: product.sourceOrderId,
       createdAt: product.createdAt?.toISOString() ?? "",
-      cost: product.externallySourced ? "N/A (External)" : `KES ${costAmount.toFixed(2)}`,
+      cost: `KES ${costAmount.toFixed(2)}`,
       revenue: `KES ${revenueAmount.toFixed(2)}`,
-      margin: product.externallySourced
-        ? "N/A (External)"
-        : `KES ${marginAmount!.toFixed(2)}`,
+      margin: `KES ${marginAmount.toFixed(2)}`,
       marginRaw: marginAmount,
+    };
+  });
+}
+
+export type IncomingOrder = {
+  orderId: string;
+  productName: string;
+  consumerName: string;
+  quantity: number;
+  totalAmount: string;
+  createdAt: string;
+  paymentStatus: string | null;
+  rawSupplyLeg: {
+    id: string;
+    status: string;
+    amount: string;
+    assignedAt: string | null;
+  };
+  legs: Array<{
+    id: string;
+    roleLabel: string;
+    status: "pending" | "assigned" | "in_progress" | "completed" | "cancelled";
+    amount: string;
+    timestamp?: string;
+    assignee?: string;
+  }>;
+};
+
+export async function getRetailerIncomingOrders(): Promise<IncomingOrder[]> {
+  const user = await getUser();
+
+  const resaleProducts = await db
+    .select({ id: products.id, name: products.name })
+    .from(products)
+    .where(
+      and(
+        eq(products.sellerId, user.id),
+        eq(products.sellerRole, "retailer"),
+      ),
+    );
+
+  if (resaleProducts.length === 0) return [];
+
+  const productIds = resaleProducts.map((p) => p.id);
+  const productNameMap = new Map(resaleProducts.map((p) => [p.id, p.name]));
+
+  const orderRows = await db
+    .select()
+    .from(orders)
+    .where(inArray(orders.productId, productIds))
+    .orderBy(orders.createdAt);
+
+  if (orderRows.length === 0) return [];
+
+  const orderIds = orderRows.map((o) => o.id);
+
+  const [legRows, paymentRows] = await Promise.all([
+    db
+      .select()
+      .from(orderLegs)
+      .where(inArray(orderLegs.orderId, orderIds)),
+    db
+      .select()
+      .from(payments)
+      .where(inArray(payments.orderId, orderIds)),
+  ]);
+
+  const consumerIds = [...new Set(orderRows.map((o) => o.consumerId))];
+  const consumerRows = consumerIds.length > 0
+    ? await db
+        .select()
+        .from(users)
+        .where(inArray(users.id, consumerIds))
+    : [];
+  const consumerMap = new Map(consumerRows.map((c) => [c.id, c.name]));
+
+  const paymentByOrder = new Map(paymentRows.map((p) => [p.orderId, p.status]));
+
+  const legsByOrder = new Map<string, typeof legRows>();
+  for (const leg of legRows) {
+    const existing = legsByOrder.get(leg.orderId) ?? [];
+    existing.push(leg);
+    legsByOrder.set(leg.orderId, existing);
+  }
+
+  const assigneeIds = [
+    ...new Set(legRows.map((l) => l.assignedUserId).filter(Boolean)),
+  ] as string[];
+  const assigneeRows = assigneeIds.length > 0
+    ? await db
+        .select()
+        .from(users)
+        .where(inArray(users.id, assigneeIds))
+    : [];
+  const assigneeMap = new Map(assigneeRows.map((a) => [a.id, a.name]));
+
+  return orderRows.map((order) => {
+    const allLegs = legsByOrder.get(order.id) ?? [];
+    const rawSupplyLeg = allLegs.find((l) => l.legType === "raw_supply");
+
+    return {
+      orderId: order.id,
+      productName: productNameMap.get(order.productId) ?? "Unknown",
+      consumerName: consumerMap.get(order.consumerId) ?? "Unknown",
+      quantity: order.quantity,
+      totalAmount: order.totalAmount,
+      createdAt: order.createdAt?.toISOString() ?? "",
+      paymentStatus: paymentByOrder.get(order.id) ?? null,
+      rawSupplyLeg: {
+        id: rawSupplyLeg?.id ?? "",
+        status: rawSupplyLeg?.status ?? "pending",
+        amount: rawSupplyLeg?.amount ?? "0",
+        assignedAt: rawSupplyLeg?.assignedAt?.toISOString() ?? null,
+      },
+      legs: allLegs.map((l) => ({
+        id: l.id,
+        roleLabel: l.legType
+          .replace("_", " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
+        status: (l.status === "paid" ? "completed" : l.status ?? "pending") as
+          | "pending"
+          | "assigned"
+          | "in_progress"
+          | "completed"
+          | "cancelled",
+        amount: `KES ${l.amount}`,
+        timestamp: l.assignedAt?.toISOString() ?? undefined,
+        assignee: l.assignedUserId ? assigneeMap.get(l.assignedUserId) : undefined,
+      })),
     };
   });
 }

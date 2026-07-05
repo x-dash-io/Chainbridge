@@ -118,6 +118,7 @@ export async function getRetailerRevenue(userId: string): Promise<RetailerRevenu
       pricePerUnit: products.pricePerUnit,
       sourceOrderId: products.sourceOrderId,
       externallySourced: products.externallySourced,
+      purchaseCost: products.purchaseCost,
     })
     .from(products)
     .where(and(eq(products.sellerId, userId), eq(products.sellerRole, "retailer")));
@@ -162,7 +163,9 @@ export async function getRetailerRevenue(userId: string): Promise<RetailerRevenu
   const productPriceMap = new Map(resaleProducts.map((p) => [p.id, Number(p.pricePerUnit)]));
   const productCostMap = new Map<string, number>();
   for (const p of resaleProducts) {
-    if (p.sourceOrderId && !p.externallySourced) {
+    if (p.externallySourced) {
+      productCostMap.set(p.id, parseFloat(p.purchaseCost ?? "0"));
+    } else if (p.sourceOrderId) {
       productCostMap.set(p.id, costMap.get(p.sourceOrderId) ?? 0);
     }
   }

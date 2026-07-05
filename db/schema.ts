@@ -92,6 +92,10 @@ export const products = pgTable("products", {
     scale: 2,
   }).notNull(),
   quantityAvailable: integer("quantity_available").notNull(),
+  purchaseCost: decimal("purchase_cost", {
+    precision: 10,
+    scale: 2,
+  }),
   description: text("description"),
   imageUrl: text("image_url"),
   imagePublicId: text("image_public_id"),

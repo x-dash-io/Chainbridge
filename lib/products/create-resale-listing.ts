@@ -9,6 +9,7 @@ export type CreateResaleListingInput = {
   retailerId: string;
   sourceOrderId?: string; // required unless externallySourced is true
   externallySourced?: boolean;
+  purchaseCost?: number; // cost paid for external stock
   name: string;
   category: string;
   unit: string;
@@ -31,6 +32,7 @@ export async function createResaleListing(
     retailerId,
     sourceOrderId,
     externallySourced = false,
+    purchaseCost,
     name,
     category,
     unit,
@@ -100,6 +102,7 @@ export async function createResaleListing(
       sellerRole: "retailer",
       sourceOrderId: sourceOrderId || null,
       externallySourced,
+      purchaseCost: purchaseCost ? purchaseCost.toFixed(2) : null,
       name,
       category,
       unit,

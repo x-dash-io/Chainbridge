@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth";
 import {
   getRetailerSourcingOrders,
   getRetailerResaleListings,
+  getRetailerIncomingOrders,
 } from "@/lib/products/actions";
 import {
   getProductsForConsumer,
@@ -20,6 +21,7 @@ export default async function RetailerDashboard() {
   const serviceProviders = await getAvailableServiceProviders();
   const sourcingOrders = await getRetailerSourcingOrders();
   const resaleListings = await getRetailerResaleListings();
+  const incomingOrders = await getRetailerIncomingOrders();
 
   const totalMarginRaw = resaleListings.reduce(
     (sum, l) => sum + (l.marginRaw ?? 0),
@@ -66,6 +68,7 @@ export default async function RetailerDashboard() {
         serviceProviders={serviceProviders}
         sourcingOrders={sourcingOrders}
         resaleListings={resaleListings}
+        incomingOrders={incomingOrders}
       />
 
       <RetailerRevenueSection data={retailerRevenue} />

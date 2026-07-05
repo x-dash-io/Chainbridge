@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { db as defaultDb } from "@/db/client";
 import { payments, orders, orderLegs, payouts } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import type { DbInstance } from "@/lib/db-types";
 import { recordAuditEvent } from "@/lib/audit/audit-log";
 import { getRequiredEnv, getOptionalEnv } from "@/lib/config/validate";
@@ -341,6 +342,13 @@ export async function processCallback(
     },
     db,
   );
+
+  try {
+    revalidatePath("/consumer");
+    revalidatePath("/retailer");
+  } catch {
+    // revalidatePath may not be available in all environments (e.g. tests)
+  }
 
   return { status: "completed" };
 }

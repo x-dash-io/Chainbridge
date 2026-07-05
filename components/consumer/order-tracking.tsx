@@ -70,9 +70,14 @@ function OrderCard({ order }: { order: ConsumerOrder }) {
               ×{order.quantity} — KES {order.totalAmount}
             </CardDescription>
           </div>
-          <StatusBadge variant={overallBadgeVariant[order.status]}>
-            {order.status.replace("_", " ")}
-          </StatusBadge>
+          <div className="flex items-center gap-2">
+            {order.isPaid && (
+              <StatusBadge variant="success">PAID</StatusBadge>
+            )}
+            <StatusBadge variant={overallBadgeVariant[order.status]}>
+              {order.status.replace("_", " ")}
+            </StatusBadge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

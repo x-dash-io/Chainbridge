@@ -1,7 +1,7 @@
 import { requireRole } from "@/lib/auth";
 import { db } from "@/db/client";
-import { products, orders, orderLegs, users } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { products, orders, orderLegs, payments, users } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 import { StatStrip } from "@/components/ui/stat-strip";
 import { ConsumerDashboardClient } from "./client";
 
@@ -43,6 +43,7 @@ export default async function ConsumerDashboard() {
     totalAmount: string;
     createdAt: string;
       status: "pending" | "in_progress" | "completed" | "cancelled";
+      isPaid: boolean;
       legs: Array<{
       id: string;
       roleLabel: string;
@@ -60,6 +61,17 @@ export default async function ConsumerDashboard() {
 
   if (orderRows.length > 0) {
     const orderIds = orderRows.map((o) => o.id);
+    const paymentRows = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          inArray(payments.orderId, orderIds),
+          eq(payments.status, "completed"),
+        ),
+      );
+    const paidOrderIds = new Set(paymentRows.map((payment) => payment.orderId));
+
     const legRows = await db
       .select()
       .from(orderLegs)
@@ -72,11 +84,13 @@ export default async function ConsumerDashboard() {
       legsByOrder.set(leg.orderId, existing);
     }
 
-    const productIds = [...new Set(orderRows.map((o) => o.productId))];
-    const fetchedProductRows = await db
-      .select()
-      .from(products)
-      .where(inArray(products.id, productIds));
+    const productIds = [...new Set(orderRows.map((o) => o.productId).filter(Boolean))] as string[];
+    const fetchedProductRows = productIds.length > 0
+      ? await db
+          .select()
+          .from(products)
+          .where(inArray(products.id, productIds))
+      : [];
     const productMap = new Map(fetchedProductRows.map((p) => [p.id, p.name]));
 
     const assigneeIds = [
@@ -99,11 +113,12 @@ export default async function ConsumerDashboard() {
       const allPaid = nonCancelled.length > 0 && nonCancelled.every((s) => s === "paid");
       const allPending = nonCancelled.every((s) => s === "pending" || s === null);
       const overall = allCancelled ? "cancelled" : allPaid ? "completed" : allPending ? "pending" : "in_progress";
+      const isPaid = paidOrderIds.has(order.id);
 
       if (overall === "completed") completedOrderCount++;
       else if (overall !== "cancelled") activeOrderCount++;
 
-      if (overall !== "cancelled") {
+      if (isPaid) {
         totalSpent += Number(order.totalAmount);
       }
 
@@ -114,6 +129,7 @@ export default async function ConsumerDashboard() {
         totalAmount: order.totalAmount,
         createdAt: order.createdAt?.toISOString() ?? "",
         status: overall as "pending" | "in_progress" | "completed" | "cancelled",
+        isPaid,
         legs: orderLegsList.map((l) => ({
           id: l.id,
           roleLabel: l.legType

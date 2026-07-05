@@ -39,6 +39,8 @@ type ConsumerOrder = {
   totalAmount: string;
   createdAt: string;
   status: "pending" | "in_progress" | "completed" | "cancelled";
+  isPaid?: boolean;
+  paymentStatus?: string | null;
   legs: OrderLeg[];
 };
 

@@ -44,6 +44,7 @@ export default async function ConsumerDashboard() {
     createdAt: string;
       status: "pending" | "in_progress" | "completed" | "cancelled";
       isPaid: boolean;
+      paymentStatus: string | null;
       legs: Array<{
       id: string;
       roleLabel: string;
@@ -64,13 +65,19 @@ export default async function ConsumerDashboard() {
     const paymentRows = await db
       .select()
       .from(payments)
-      .where(
-        and(
-          inArray(payments.orderId, orderIds),
-          eq(payments.status, "completed"),
-        ),
-      );
-    const paidOrderIds = new Set(paymentRows.map((payment) => payment.orderId));
+      .where(inArray(payments.orderId, orderIds));
+    const paidOrderIds = new Set(
+      paymentRows
+        .filter((p) => p.status === "completed")
+        .map((payment) => payment.orderId),
+    );
+    const paymentStatusByOrder = new Map<string, string>();
+    for (const p of paymentRows) {
+      const existing = paymentStatusByOrder.get(p.orderId);
+      if (!existing || p.status === "completed") {
+        paymentStatusByOrder.set(p.orderId, p.status ?? "initiated");
+      }
+    }
 
     const legRows = await db
       .select()
@@ -130,6 +137,7 @@ export default async function ConsumerDashboard() {
         createdAt: order.createdAt?.toISOString() ?? "",
         status: overall as "pending" | "in_progress" | "completed" | "cancelled",
         isPaid,
+        paymentStatus: paymentStatusByOrder.get(order.id) ?? null,
         legs: orderLegsList.map((l) => ({
           id: l.id,
           roleLabel: l.legType

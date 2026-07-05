@@ -20,8 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ImageUpload, type ImageData } from "@/components/ui/image-upload";
-import { createResaleListingAction, type IncomingOrder } from "@/lib/products/actions";
-import { confirmReceiptAction, cancelOrderAction } from "@/lib/orders/actions";
+import { createResaleListingAction, startLeg, completeLeg, type IncomingOrder } from "@/lib/products/actions";
+import { confirmReceiptAction, cancelOrderAction, forceCompletePayment } from "@/lib/orders/actions";
 
 type ProductItem = {
   id: string;
@@ -741,49 +741,7 @@ export function RetailerDashboardClient({
                               : "neutral";
 
                     return (
-                      <Card key={order.orderId} className="border border-border/80 bg-card rounded-lg overflow-hidden transition-all duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-[1px]">
-                        <CardHeader className="border-b border-border/40 py-3 px-5 bg-background/20">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <CardTitle className="text-sm font-semibold text-foreground truncate">
-                                {order.productName}
-                              </CardTitle>
-                              <CardDescription className="text-xs text-muted">
-                                Ordered by {order.consumerName} &middot; Qty: {order.quantity}
-                              </CardDescription>
-                            </div>
-                            <StatusBadge variant={legStatusVariant}>
-                              {order.rawSupplyLeg.status === "paid"
-                                ? "Paid"
-                                : order.rawSupplyLeg.status.replace("_", " ")}
-                            </StatusBadge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="py-4 px-5 flex flex-col gap-4">
-                          <OrderLegTracker legs={order.legs} />
-
-                          <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border/40 pt-3 text-sm">
-                            <span className="text-muted">
-                              Total:{" "}
-                              <span className="font-medium text-foreground">
-                                KES {order.totalAmount}
-                              </span>
-                            </span>
-                            <span className="text-muted">
-                              Payment:{" "}
-                              <span className="font-medium text-foreground">
-                                {order.paymentStatus ?? "Pending"}
-                              </span>
-                            </span>
-                            <span className="text-muted">
-                              Date:{" "}
-                              <span className="font-medium text-foreground">
-                                {new Date(order.createdAt).toLocaleDateString()}
-                              </span>
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <OrderReceivedCard key={order.orderId} order={order} legStatusVariant={legStatusVariant} />
                     );
                   })}
                 </div>
@@ -793,6 +751,103 @@ export function RetailerDashboardClient({
         </div>
       )}
     </div>
+  );
+}
+
+function OrderReceivedCard({
+  order,
+  legStatusVariant,
+}: {
+  order: IncomingOrder;
+  legStatusVariant: "success" | "warning" | "neutral" | "error";
+}) {
+  const [startState, startAction, startPending] = useActionState(startLeg, null);
+  const [completeState, completeAction, completePending] = useActionState(completeLeg, null);
+  const [payState, payAction, payPending] = useActionState(forceCompletePayment, null);
+
+  return (
+    <Card className="border border-border/80 bg-card rounded-lg overflow-hidden transition-all duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-[1px]">
+      <CardHeader className="border-b border-border/40 py-3 px-5 bg-background/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <CardTitle className="text-sm font-semibold text-foreground truncate">
+              {order.productName}
+            </CardTitle>
+            <CardDescription className="text-xs text-muted">
+              Ordered by {order.consumerName} &middot; Qty: {order.quantity}
+            </CardDescription>
+          </div>
+          <StatusBadge variant={legStatusVariant}>
+            {order.rawSupplyLeg.status === "paid"
+              ? "Paid"
+              : order.rawSupplyLeg.status.replace("_", " ")}
+          </StatusBadge>
+        </div>
+      </CardHeader>
+      <CardContent className="py-4 px-5 flex flex-col gap-4">
+        <OrderLegTracker legs={order.legs} />
+
+        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border/40 pt-3 text-sm">
+          <span className="text-muted">
+            Total:{" "}
+            <span className="font-medium text-foreground">
+              KES {order.totalAmount}
+            </span>
+          </span>
+            <span className="text-muted">
+              Payment:{" "}
+              {order.paymentStatus === "failed" ? (
+                <span className="font-medium text-destructive">Failed</span>
+              ) : (
+                <span className="font-medium text-foreground">
+                  {order.paymentStatus ?? "Pending"}
+                </span>
+              )}
+            </span>
+          <span className="text-muted">
+            Date:{" "}
+            <span className="font-medium text-foreground">
+              {new Date(order.createdAt).toLocaleDateString()}
+            </span>
+          </span>
+        </div>
+
+        {(startState?.error || completeState?.error || payState?.error) && (
+          <p className="text-xs text-destructive">{payState?.error ?? startState?.error ?? completeState?.error}</p>
+        )}
+
+        {order.paymentStatus === "initiated" && (
+          <form action={payAction}>
+            <input type="hidden" name="orderId" value={order.orderId} />
+            <Button type="submit" variant="primary" disabled={payPending} className="w-full cursor-pointer">
+              {payPending ? "Processing\u2026" : "Mark as Paid"}
+            </Button>
+          </form>
+        )}
+
+        {(order.rawSupplyLeg.status === "assigned" || order.rawSupplyLeg.status === "pending") && (
+          <form action={startAction}>
+            <input type="hidden" name="legId" value={order.rawSupplyLeg.id} />
+            <Button type="submit" variant="accent" disabled={startPending} className="w-full cursor-pointer">
+              {startPending ? "Starting\u2026" : "Start Fulfilling"}
+            </Button>
+          </form>
+        )}
+
+        {order.rawSupplyLeg.status === "in_progress" && (
+          <form action={completeAction}>
+            <input type="hidden" name="legId" value={order.rawSupplyLeg.id} />
+            <Button type="submit" variant="primary" disabled={completePending} className="w-full cursor-pointer">
+              {completePending ? "Completing\u2026" : "Mark Complete"}
+            </Button>
+          </form>
+        )}
+
+        {(order.rawSupplyLeg.status === "completed" || order.rawSupplyLeg.status === "paid") && (
+          <p className="text-xs text-success font-medium text-center">Fulfilled</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

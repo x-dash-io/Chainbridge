@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 import { db } from "@/db/client";
-import { orderLegs, orders, products, users, payouts } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { orderLegs, orders, products, users, payments, payouts } from "@/db/schema";
+import { eq, inArray, and } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
-import { requireConsumerOrRetailer } from "@/lib/auth/authorization";
+import { requireConsumerOrRetailer, requireRetailer } from "@/lib/auth/authorization";
 import { createOrder } from "@/lib/orders/create-order";
 import { cancelOrder } from "@/lib/orders/cancel-order";
 import { recordAuditEvent } from "@/lib/audit/audit-log";
@@ -276,6 +276,95 @@ export async function cancelOrderAction(
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Failed to cancel order.",
+    };
+  }
+}
+
+export type ForcePaymentState = {
+  error?: string;
+  success?: boolean;
+} | null;
+
+export async function forceCompletePayment(
+  _prevState: ForcePaymentState,
+  formData: FormData,
+): Promise<ForcePaymentState> {
+  try {
+    const user = await getUser();
+    requireConsumerOrRetailer(user);
+
+    const orderId = formData.get("orderId");
+    if (typeof orderId !== "string") return { error: "Invalid order." };
+
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(and(eq(payments.orderId, orderId), eq(payments.status, "initiated")))
+      .limit(1);
+
+    if (!payment) return { error: "No initiated payment found for this order." };
+
+    const allLegs = await db
+      .select()
+      .from(orderLegs)
+      .where(eq(orderLegs.orderId, orderId));
+
+    if (allLegs.length === 0) return { error: "Order has no legs." };
+
+    const receipt = `MANUAL-${Date.now().toString(36).toUpperCase()}`;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(payments)
+        .set({ status: "completed", mpesaReceipt: receipt })
+        .where(eq(payments.id, payment.id));
+
+      const nonCancelledLegs = allLegs.filter((l) => l.status !== "cancelled");
+
+      for (const leg of nonCancelledLegs) {
+        if (!leg.assignedUserId) continue;
+
+        const [existingPayout] = await tx
+          .select()
+          .from(payouts)
+          .where(
+            and(
+              eq(payouts.orderLegId, leg.id),
+              eq(payouts.userId, leg.assignedUserId),
+            ),
+          )
+          .limit(1);
+
+        if (existingPayout) continue;
+
+        await tx.insert(payouts).values({
+          orderLegId: leg.id,
+          userId: leg.assignedUserId,
+          amount: leg.amount,
+          status: "owed",
+        });
+      }
+    });
+
+    await recordAuditEvent({
+      eventType: "payment.completed",
+      actorId: user.id,
+      resourceType: "payment",
+      resourceId: payment.id,
+      details: {
+        orderId,
+        mpesaReceipt: receipt,
+        amount: payment.amount,
+        reason: "manual_force_complete",
+      },
+    });
+
+    revalidatePath("/consumer");
+    revalidatePath("/retailer");
+    return { success: true };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to complete payment.",
     };
   }
 }

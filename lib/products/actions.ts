@@ -7,6 +7,7 @@ import { eq, inArray, sum, and, sql } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { requireRetailer } from "@/lib/auth/authorization";
 import { createResaleListing } from "./create-resale-listing";
+import { transitionLeg } from "@/lib/orders/transition-leg";
 import { revalidatePath } from "next/cache";
 
 const CreateResaleListingSchema = z.object({
@@ -81,6 +82,86 @@ export async function createResaleListingAction(
     return { success: true, productId: result.productId };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create resale listing." };
+  }
+}
+
+const LegActionSchema = z.object({
+  legId: z.string().uuid(),
+});
+
+export type RetailerLegActionState = {
+  error?: string;
+  success?: boolean;
+} | null;
+
+export async function startLeg(
+  _prevState: RetailerLegActionState,
+  formData: FormData,
+): Promise<RetailerLegActionState> {
+  try {
+    const user = await getUser();
+    requireRetailer(user);
+
+    const parsed = LegActionSchema.safeParse({
+      legId: formData.get("legId"),
+    });
+
+    if (!parsed.success) return { error: "Invalid leg." };
+
+    const legId = parsed.data.legId;
+
+    const [leg] = await db
+      .select()
+      .from(orderLegs)
+      .where(eq(orderLegs.id, legId));
+
+    if (!leg) return { error: "Leg not found." };
+    if (leg.assignedUserId !== user.id) return { error: "This leg is not assigned to you." };
+
+    if (leg.status === "assigned") {
+      await transitionLeg({ legId, actorUserId: user.id, toStatus: "in_progress" });
+    } else if (leg.status === "pending") {
+      await transitionLeg({ legId, actorUserId: user.id, toStatus: "assigned" });
+      await transitionLeg({ legId, actorUserId: user.id, toStatus: "in_progress" });
+    } else {
+      return { error: `Cannot start leg in current status: ${leg.status}` };
+    }
+
+    revalidatePath("/retailer");
+    return { success: true };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to start leg.",
+    };
+  }
+}
+
+export async function completeLeg(
+  _prevState: RetailerLegActionState,
+  formData: FormData,
+): Promise<RetailerLegActionState> {
+  try {
+    const user = await getUser();
+    requireRetailer(user);
+
+    const parsed = LegActionSchema.safeParse({
+      legId: formData.get("legId"),
+    });
+
+    if (!parsed.success) return { error: "Invalid leg." };
+
+    await transitionLeg({
+      legId: parsed.data.legId,
+      actorUserId: user.id,
+      toStatus: "completed",
+    });
+
+    revalidatePath("/retailer");
+    return { success: true };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to complete leg.",
+    };
   }
 }
 

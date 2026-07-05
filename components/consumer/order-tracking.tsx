@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useActionState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OrderLegTracker } from "@/components/order-leg-tracker";
-import { confirmReceiptAction, cancelOrderAction } from "@/lib/orders/actions";
+import { confirmReceiptAction, cancelOrderAction, forceCompletePayment } from "@/lib/orders/actions";
 
 type OrderLeg = {
   id: string;
@@ -25,6 +27,8 @@ type ConsumerOrder = {
   totalAmount: string;
   createdAt: string;
   status: "pending" | "in_progress" | "completed" | "cancelled";
+  isPaid?: boolean;
+  paymentStatus?: string | null;
   legs: OrderLeg[];
 };
 
@@ -43,6 +47,10 @@ const overallBadgeVariant: Record<
 };
 
 function OrderCard({ order }: { order: ConsumerOrder }) {
+  const [retryPhone, setRetryPhone] = useState("");
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [retryPending, setRetryPending] = useState(false);
+
   const confirmableLegs = order.legs.filter(
     (l) => l.status === "completed" && !l.isPaid,
   );
@@ -57,6 +65,35 @@ function OrderCard({ order }: { order: ConsumerOrder }) {
     cancelOrderAction,
     null,
   );
+  const [payState, payAction, payPending] = useActionState(forceCompletePayment, null);
+
+  const handleRetryPayment = async () => {
+    if (!retryPhone.match(/^2547\d{8}$/)) {
+      setRetryError("Enter a valid M-Pesa number (2547XXXXXXXX)");
+      return;
+    }
+    setRetryPending(true);
+    setRetryError(null);
+    try {
+      const res = await fetch("/api/mpesa/stk-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.orderId, phoneNumber: retryPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRetryError(data.error ?? "Payment failed. Try again.");
+        return;
+      }
+      alert("STK push sent! Check your phone and enter your PIN.");
+    } catch {
+      setRetryError("Network error. Please try again.");
+    } finally {
+      setRetryPending(false);
+    }
+  };
+
+  const isPaymentFailed = order.paymentStatus === "failed";
 
   return (
     <Card>
@@ -71,7 +108,10 @@ function OrderCard({ order }: { order: ConsumerOrder }) {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            {order.isPaid && (
+            {isPaymentFailed && (
+              <StatusBadge variant="error">PAYMENT FAILED</StatusBadge>
+            )}
+            {order.isPaid && !isPaymentFailed && (
               <StatusBadge variant="success">PAID</StatusBadge>
             )}
             <StatusBadge variant={overallBadgeVariant[order.status]}>
@@ -83,12 +123,62 @@ function OrderCard({ order }: { order: ConsumerOrder }) {
       <CardContent className="flex flex-col gap-4">
         <OrderLegTracker legs={order.legs} />
 
+        {isPaymentFailed && (
+          <div className="rounded-lg border border-badge-error-fg/20 bg-badge-error-bg/10 p-4 flex flex-col gap-3">
+            <p className="text-sm font-medium text-badge-error-fg">
+              Payment failed. Check your M-Pesa and try again.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="retry-phone" className="text-xs text-muted">
+                M-Pesa Phone Number
+              </Label>
+              <Input
+                id="retry-phone"
+                type="tel"
+                placeholder="2547XXXXXXXX"
+                value={retryPhone}
+                onChange={(e) => setRetryPhone(e.target.value)}
+                className="bg-background text-sm"
+              />
+              {retryError && (
+                <p className="text-xs text-destructive">{retryError}</p>
+              )}
+              <Button
+                type="button"
+                variant="primary"
+                disabled={retryPending}
+                onClick={handleRetryPayment}
+                className="cursor-pointer"
+              >
+                {retryPending ? "Sending\u2026" : "Retry Payment"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {confirmableLegs.length > 0 && (
           <div className="flex flex-col gap-2">
             {confirmableLegs.map((leg) => (
               <LegConfirmRow key={leg.id} leg={leg} />
             ))}
           </div>
+        )}
+
+        {payState?.error && (
+          <p className="text-xs text-destructive">{payState.error}</p>
+        )}
+
+        {payState?.success && (
+          <p className="text-xs text-success font-medium">Payment confirmed!</p>
+        )}
+
+        {!order.isPaid && !isPaymentFailed && !payState?.success && (
+          <form action={payAction}>
+            <input type="hidden" name="orderId" value={order.orderId} />
+            <Button type="submit" variant="accent" disabled={payPending} className="w-full cursor-pointer">
+              {payPending ? "Processing\u2026" : "Mark as Paid"}
+            </Button>
+          </form>
         )}
 
         {cancellable && (

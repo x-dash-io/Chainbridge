@@ -796,7 +796,9 @@ function OrderReceivedCard({
           </span>
             <span className="text-muted">
               Payment:{" "}
-              {order.paymentStatus === "failed" ? (
+              {order.rawSupplyLeg.status === "cancelled" ? (
+                <span className="font-medium text-muted">N/A</span>
+              ) : order.paymentStatus === "failed" ? (
                 <span className="font-medium text-destructive">Failed</span>
               ) : (
                 <span className="font-medium text-foreground">
@@ -816,35 +818,39 @@ function OrderReceivedCard({
           <p className="text-xs text-destructive">{payState?.error ?? startState?.error ?? completeState?.error}</p>
         )}
 
-        {order.paymentStatus === "initiated" && (
-          <form action={payAction}>
-            <input type="hidden" name="orderId" value={order.orderId} />
-            <Button type="submit" variant="primary" disabled={payPending} className="w-full cursor-pointer">
-              {payPending ? "Processing\u2026" : "Mark as Paid"}
-            </Button>
-          </form>
-        )}
+        {order.rawSupplyLeg.status !== "cancelled" && (
+          <>
+            {order.paymentStatus === "initiated" && (
+              <form action={payAction}>
+                <input type="hidden" name="orderId" value={order.orderId} />
+                <Button type="submit" variant="primary" disabled={payPending} className="w-full cursor-pointer">
+                  {payPending ? "Processing\u2026" : "Mark as Paid"}
+                </Button>
+              </form>
+            )}
 
-        {(order.rawSupplyLeg.status === "assigned" || order.rawSupplyLeg.status === "pending") && (
-          <form action={startAction}>
-            <input type="hidden" name="legId" value={order.rawSupplyLeg.id} />
-            <Button type="submit" variant="accent" disabled={startPending} className="w-full cursor-pointer">
-              {startPending ? "Starting\u2026" : "Start Fulfilling"}
-            </Button>
-          </form>
-        )}
+            {(order.rawSupplyLeg.status === "assigned" || order.rawSupplyLeg.status === "pending") && (
+              <form action={startAction}>
+                <input type="hidden" name="legId" value={order.rawSupplyLeg.id} />
+                <Button type="submit" variant="accent" disabled={startPending} className="w-full cursor-pointer">
+                  {startPending ? "Starting\u2026" : "Start Fulfilling"}
+                </Button>
+              </form>
+            )}
 
-        {order.rawSupplyLeg.status === "in_progress" && (
-          <form action={completeAction}>
-            <input type="hidden" name="legId" value={order.rawSupplyLeg.id} />
-            <Button type="submit" variant="primary" disabled={completePending} className="w-full cursor-pointer">
-              {completePending ? "Completing\u2026" : "Mark Complete"}
-            </Button>
-          </form>
-        )}
+            {order.rawSupplyLeg.status === "in_progress" && (
+              <form action={completeAction}>
+                <input type="hidden" name="legId" value={order.rawSupplyLeg.id} />
+                <Button type="submit" variant="primary" disabled={completePending} className="w-full cursor-pointer">
+                  {completePending ? "Completing\u2026" : "Mark Complete"}
+                </Button>
+              </form>
+            )}
 
-        {(order.rawSupplyLeg.status === "completed" || order.rawSupplyLeg.status === "paid") && (
-          <p className="text-xs text-success font-medium text-center">Fulfilled</p>
+            {(order.rawSupplyLeg.status === "completed" || order.rawSupplyLeg.status === "paid") && (
+              <p className="text-xs text-success font-medium text-center">Fulfilled</p>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

@@ -172,7 +172,7 @@ function OrderCard({ order }: { order: ConsumerOrder }) {
           <p className="text-xs text-success font-medium">Payment confirmed!</p>
         )}
 
-        {!order.isPaid && !isPaymentFailed && !payState?.success && (
+        {!order.isPaid && !isPaymentFailed && !payState?.success && order.status !== "cancelled" && (
           <form action={payAction}>
             <input type="hidden" name="orderId" value={order.orderId} />
             <Button type="submit" variant="accent" disabled={payPending} className="w-full cursor-pointer">

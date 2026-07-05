@@ -53,8 +53,8 @@ export function validateConfig(): ConfigValidationResult {
 }
 
 export function getRequiredEnv(key: string): string {
-  const value = process.env[key];
-  if (!value || value.trim() === "") {
+  const value = process.env[key]?.trim();
+  if (!value || value === "") {
     throw new Error(
       `Missing required environment variable: ${key}. Check your .env file.`,
     );
@@ -63,5 +63,5 @@ export function getRequiredEnv(key: string): string {
 }
 
 export function getOptionalEnv(key: string, defaultValue?: string): string | undefined {
-  return process.env[key] || defaultValue;
+  return process.env[key]?.trim() || defaultValue;
 }

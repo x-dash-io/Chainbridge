@@ -38,7 +38,6 @@ export async function getUploadSignature(): Promise<UploadSignatureResult> {
       folder,
       timestamp: String(timestamp),
       allowed_formats: "jpg,png,webp",
-      max_file_size: "5242880",
     };
 
     const sortedKeys = Object.keys(params).sort();

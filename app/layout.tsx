@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Chainbridge",
   description:
     "A direct marketplace for Kenya's supply chain, from farm to consumer.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

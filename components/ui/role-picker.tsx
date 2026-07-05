@@ -22,7 +22,7 @@ export function RolePicker({ value, onChange, error }: RolePickerProps) {
       <label className="text-sm font-medium leading-none text-foreground">
         Role
       </label>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3">
         {ROLES.map((role) => (
           <RoleCard
             key={role.value}

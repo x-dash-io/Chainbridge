@@ -70,7 +70,7 @@ async function sendStkPush(
     PartyB: shortCode,
     PhoneNumber: phoneNumber,
     CallBackURL: callbackUrl,
-    AccountReference: accountRef,
+    AccountReference: accountRef.slice(0, 12),
     TransactionDesc: "Order Payment",
   };
 
@@ -103,9 +103,10 @@ export async function initiateStkPush(
   const consumerSecret = getRequiredEnv("MPESA_CONSUMER_SECRET");
   const passkey = getRequiredEnv("MPESA_PASSKEY");
   const shortCode = getRequiredEnv("MPESA_SHORTCODE");
-  const baseUrl = getOptionalEnv("NEXT_PUBLIC_APP_URL") ?? "https://sandbox.safaricom.co.ke";
-  const callbackUrl =
-    getOptionalEnv("MPESA_CALLBACK_URL") ?? `${baseUrl}/api/mpesa/callback`;
+  const callbackUrl = getOptionalEnv("MPESA_CALLBACK_URL");
+  if (!callbackUrl) {
+    throw new Error("MPESA_CALLBACK_URL is required. Set it to a publicly reachable HTTPS URL (e.g. ngrok)");
+  }
 
   const [order] = await db
     .select()

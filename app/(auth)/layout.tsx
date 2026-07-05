@@ -72,13 +72,31 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </blockquote>
       </div>
 
-      <div className="bg-primary px-4 py-3 md:hidden">
+      <div className="flex items-center gap-2 bg-primary px-4 py-3 md:hidden">
+        <svg
+          viewBox="0 0 32 32"
+          className="h-6 w-6"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden
+        >
+          <path
+            d="M5,21 C 9,9 23,9 27,21"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <circle cx="5" cy="21" r="3.2" fill="currentColor" />
+          <circle cx="12.3" cy="11.4" r="3" fill="currentColor" />
+          <circle cx="19.7" cy="11.4" r="3" fill="currentColor" />
+          <circle cx="27" cy="21" r="3.4" fill="#F9A825" />
+        </svg>
         <span className="text-base font-bold tracking-tight text-primary-foreground">
           Chainbridge
         </span>
       </div>
 
-      <div className="flex w-full md:w-[55%] flex-col items-center justify-center bg-background px-4 py-8 md:px-8 md:py-12">
+      <div className="flex w-full md:w-[55%] flex-col items-center justify-center bg-background px-6 py-8 md:px-8 md:py-12">
         <div className="w-full max-w-sm">{children}</div>
       </div>
     </div>

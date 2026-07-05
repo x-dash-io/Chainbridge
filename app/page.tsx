@@ -68,9 +68,13 @@ export default function LandingPage() {
     <div className="flex min-h-[100dvh] flex-col">
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <span className="text-base font-semibold tracking-tight text-foreground shrink-0">
-            Chainbridge
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <img
+              src="/chainbridge-logo-lockup.svg"
+              alt="Chainbridge"
+              className="h-10 w-auto"
+            />
+          </div>
           <div className="flex items-center gap-4 md:gap-6">
             <a
               href="#how-it-works"

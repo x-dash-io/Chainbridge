@@ -29,20 +29,15 @@ export async function proxy(request: NextRequest) {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     if (matchedDashboard) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    if (authPaths.includes(pathname)) {
-      return supabaseResponse;
-    }
     return supabaseResponse;
   }
-
-  const user = session.user;
 
   if (matchedDashboard) {
     const requiredRole = routeRoleMap[matchedDashboard];

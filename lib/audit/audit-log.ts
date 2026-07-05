@@ -24,20 +24,56 @@ export type AuditEventInput = {
   actorId: string;
   resourceType: string;
   resourceId: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | string | null;
 };
+
+function serializeDetails(
+  details?: Record<string, unknown> | string | null,
+): string | null {
+  if (details == null) {
+    return null;
+  }
+
+  if (typeof details === "string") {
+    return details;
+  }
+
+  const safeDetails = Object.fromEntries(
+    Object.entries(details).filter(
+      (_entry): _entry is [string, unknown] => {
+        const [, value] = _entry;
+        return value !== undefined && typeof value !== "function";
+      },
+    ),
+  );
+
+  return Object.keys(safeDetails).length > 0
+    ? JSON.stringify(safeDetails)
+    : null;
+}
 
 export async function recordAuditEvent(
   input: AuditEventInput,
   db: DbInstance = defaultDb,
 ): Promise<void> {
-  await db.insert(auditLogs).values({
-    eventType: input.eventType,
-    actorId: input.actorId,
-    resourceType: input.resourceType,
-    resourceId: input.resourceId,
-    details: input.details ? JSON.stringify(input.details) : null,
-  });
+  try {
+    await db.insert(auditLogs).values({
+      eventType: input.eventType,
+      actorId: input.actorId,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      details: serializeDetails(input.details),
+    });
+  } catch (error) {
+    console.error("Failed to record audit event", {
+      eventType: input.eventType,
+      actorId: input.actorId,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      details: input.details,
+      error,
+    });
+  }
 }
 
 export async function getAuditEventsForResource(

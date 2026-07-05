@@ -184,7 +184,7 @@ export function RoleCard({
           }
         : {})}
       className={cn(
-        "flex flex-col gap-2 rounded-[var(--radius)] border bg-card p-3 text-left transition-all duration-150",
+        "flex flex-col gap-2 rounded-[var(--radius)] border bg-card p-4 text-left transition-all duration-150 sm:p-3",
         !interactive && "cursor-default",
         interactive &&
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",

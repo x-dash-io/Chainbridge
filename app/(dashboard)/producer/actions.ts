@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { products, orderLegs } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
+import { requireProducer } from "@/lib/auth/authorization";
 import { transitionLeg } from "@/lib/orders/transition-leg";
 import { deleteAsset } from "@/lib/media/delete-asset";
 import { revalidatePath } from "next/cache";
@@ -47,7 +48,7 @@ export async function postProduct(
 ): Promise<ProductActionState> {
   try {
     const user = await getUser();
-    if (user.role !== "producer") return { error: "Only producers can post products." };
+    requireProducer(user);
 
     const parsed = PostProductSchema.safeParse({
       name: formData.get("name"),
@@ -92,7 +93,7 @@ export async function updateProduct(
 ): Promise<ProductActionState> {
   try {
     const user = await getUser();
-    if (user.role !== "producer") return { error: "Only producers can update products." };
+    requireProducer(user);
 
     const parsed = EditProductSchema.safeParse({
       productId: formData.get("productId"),
@@ -153,7 +154,7 @@ export async function delistProduct(
 ): Promise<ProductActionState> {
   try {
     const user = await getUser();
-    if (user.role !== "producer") return { error: "Only producers can delist products." };
+    requireProducer(user);
 
     const parsed = DelistProductSchema.safeParse({
       productId: formData.get("productId"),
@@ -193,7 +194,7 @@ export async function startLeg(
 ): Promise<ProductActionState> {
   try {
     const user = await getUser();
-    if (user.role !== "producer") return { error: "Only producers can start legs." };
+    requireProducer(user);
 
     const parsed = LegActionSchema.safeParse({
       legId: formData.get("legId"),
@@ -231,7 +232,7 @@ export async function completeLeg(
 ): Promise<ProductActionState> {
   try {
     const user = await getUser();
-    if (user.role !== "producer") return { error: "Only producers can complete legs." };
+    requireProducer(user);
 
     const parsed = LegActionSchema.safeParse({
       legId: formData.get("legId"),

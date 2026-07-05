@@ -5,6 +5,7 @@ import { getUser } from "@/lib/auth";
 import { db } from "@/db/client";
 import { products } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getOptionalEnv } from "@/lib/config/validate";
 
 export type DeleteAssetResult = { success: true } | { error: string };
 
@@ -29,9 +30,9 @@ export async function deleteAsset(
       return { error: "You do not own this product." };
     }
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const cloudName = getOptionalEnv("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME");
+    const apiKey = getOptionalEnv("NEXT_PUBLIC_CLOUDINARY_API_KEY");
+    const apiSecret = getOptionalEnv("CLOUDINARY_API_SECRET");
 
     if (!cloudName || !apiKey || !apiSecret) {
       return { error: "Cloudinary is not configured." };

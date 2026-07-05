@@ -8,6 +8,7 @@ import { getUser } from "@/lib/auth";
 import { requireConsumerOrRetailer } from "@/lib/auth/authorization";
 import { createOrder } from "@/lib/orders/create-order";
 import { cancelOrder } from "@/lib/orders/cancel-order";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 import { revalidatePath } from "next/cache";
 
 const CreateOrderSchema = z.object({
@@ -232,6 +233,18 @@ export async function confirmReceiptAction(
         paidAt: new Date(),
       });
     }
+
+    await recordAuditEvent({
+      eventType: "payout.paid",
+      actorId: user.id,
+      resourceType: "leg",
+      resourceId: legId,
+      details: {
+        legType: leg.legType,
+        amount: leg.amount,
+        payoutStatus: "paid",
+      },
+    });
 
     revalidatePath("/consumer");
     revalidatePath("/retailer");

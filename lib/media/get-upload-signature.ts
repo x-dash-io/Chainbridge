@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { getUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit/shared";
+import { getOptionalEnv } from "@/lib/config/validate";
 
 export type UploadSignatureResult =
   | {
@@ -22,9 +23,9 @@ export async function getUploadSignature(): Promise<UploadSignatureResult> {
       return { error: "Rate limit exceeded. Maximum 20 uploads per hour." };
     }
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const cloudName = getOptionalEnv("NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME");
+    const apiKey = getOptionalEnv("NEXT_PUBLIC_CLOUDINARY_API_KEY");
+    const apiSecret = getOptionalEnv("CLOUDINARY_API_SECRET");
 
     if (!cloudName || !apiKey || !apiSecret) {
       return { error: "Cloudinary is not configured." };

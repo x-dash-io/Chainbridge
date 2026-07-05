@@ -70,7 +70,7 @@ function validatePayload(body: unknown): DarajaCallbackBody {
 }
 
 export function verifyCallbackOrigin(request?: Request): void {
-  const originSecret = process.env.MPESA_CALLBACK_SECRET;
+  const originSecret = getOptionalEnv("MPESA_CALLBACK_SECRET");
   if (!originSecret) return;
 
   if (!request) {

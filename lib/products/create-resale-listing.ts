@@ -3,6 +3,7 @@ import { products, orders, orderLegs, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DbInstance } from "@/lib/db-types";
 import { requireRetailer } from "@/lib/auth/authorization";
+import { recordAuditEvent } from "@/lib/audit/audit-log";
 
 export type CreateResaleListingInput = {
   retailerId: string;
@@ -110,6 +111,21 @@ export async function createResaleListing(
       status: "active",
     })
     .returning({ id: products.id });
+
+  await recordAuditEvent(
+    {
+      eventType: "resale.created",
+      actorId: retailerId,
+      resourceType: "product",
+      resourceId: newProduct.id,
+      details: {
+        name,
+        sourceOrderId: sourceOrderId || undefined,
+        externallySourced,
+      },
+    },
+    db,
+  );
 
   return {
     productId: newProduct.id,

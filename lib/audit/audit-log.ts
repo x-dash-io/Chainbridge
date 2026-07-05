@@ -16,7 +16,8 @@ export type AuditEventType =
   | "dispute.raised"
   | "dispute.resolved"
   | "admin.override"
-  | "admin.verify_user";
+  | "admin.verify_user"
+  | "resale.created";
 
 export type AuditEventInput = {
   eventType: AuditEventType;

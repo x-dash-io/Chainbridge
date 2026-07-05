@@ -14,6 +14,10 @@ export function isRetailer(role: string): boolean {
   return role === "retailer";
 }
 
+export function isProducer(role: string): boolean {
+  return role === "producer";
+}
+
 export function isServiceProvider(role: string): boolean {
   return ["producer", "processor", "packer", "delivery_agent"].includes(role);
 }
@@ -55,6 +59,12 @@ export async function requireConsumerOrRetailerPage(
     throw new Error(errorMessage);
   }
   return user;
+}
+
+export function requireProducer(user: AuthorizedUser): asserts user is AuthorizedUser {
+  if (!isProducer(user.role)) {
+    throw new Error("Only producers can perform this action");
+  }
 }
 
 export async function requireRetailerPage(): Promise<AuthorizedUser> {

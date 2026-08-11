@@ -427,20 +427,20 @@ async function simulatePartialProgression(order: any, legs: any[], orderDate: Da
       assignedAt = new Date(orderDate.getTime() + randomInt(1, 5) * 24 * 60 * 60 * 1000);
     }
     
-    if (targetState === 'completed') {
+    if (targetState === 'completed' && assignedAt) {
       completedAt = new Date(assignedAt.getTime() + randomInt(1, 3) * 24 * 60 * 60 * 1000);
     }
     
     await db.update(orderLegs)
       .set({
-        status: targetState,
+        status: targetState as any,
         assignedAt: assignedAt,
         completedAt: completedAt
       })
       .where(eq(orderLegs.id, leg.id));
     
     // Create payout only for completed legs
-    if (targetState === 'completed') {
+    if (targetState === 'completed' && completedAt) {
       await db.insert(payouts).values({
         id: uuidv4(),
         orderLegId: leg.id,
@@ -505,7 +505,7 @@ async function generateDisputes(userMap: Map<string, any[]>, allOrders: any[]) {
       raisedByUserId: consumer.id,
       resolvedByAdminId: admin.id,
       reason: reason,
-      status: resolutionType,
+      status: resolutionType as any,
       resolutionNotes: `Admin reviewed the case and determined ${resolutionType === 'resolved_override' ? 'to override the leg status and approve payment' : 'to flag for refund due to valid customer complaint'}. Action taken after careful consideration of evidence provided.`,
       createdAt: randomDate(
         new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),

@@ -77,7 +77,28 @@ npm run seed:full
 npx tsx scripts/seed-database.ts
 ```
 
-### 4. `simulate-user-actions.sh`
+### 4. `seed-supabase-auth.ts` (Required for Login)
+Supabase Auth seeding script that creates authentication users to match database users.
+
+**What it does:**
+- Reads users from the application database
+- Creates corresponding users in Supabase Auth
+- Sets all passwords to `password123` for consistency
+- Auto-confirms emails so users can login immediately
+- Links database users to Supabase Auth users by ID
+- Handles duplicates gracefully (updates existing users)
+
+**Run:**
+```bash
+npm run seed:supabase-auth
+# or
+npx tsx scripts/seed-supabase-auth.ts
+```
+
+**Why it's needed:**
+The database seed script only creates users in the application database, but authentication requires users in Supabase Auth. This script bridges that gap.
+
+### 6. `simulate-user-actions.sh`
 Bash script that simulates real user interactions via API calls.
 
 **What it does:**
@@ -106,13 +127,18 @@ Bash script that simulates real user interactions via API calls.
 npm run seed:database
 ```
 
-2. **With images (optional):**
+2. **Seed Supabase Auth (required for login):**
+```bash
+npm run seed:supabase-auth
+```
+
+3. **With images (optional):**
 ```bash
 npm run seed:download-images
 npm run seed:full
 ```
 
-3. **Simulate user actions (optional):**
+4. **Simulate user actions (optional):**
 ```bash
 npm run seed:simulate
 ```
@@ -163,6 +189,17 @@ SUPABASE_SERVICE_ROLE_KEY=...
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dxfg7om7j
 NEXT_PUBLIC_CLOUDINARY_API_KEY=466934647797747
 CLOUDINARY_API_SECRET=FmV2dYhtcTBdNYXZuV51T2AEZ48
+```
+
+## Package.json Scripts Added
+
+```json
+"seed:download-images": "npx tsx scripts/download-images.ts",
+"seed:database": "npx tsx scripts/quick-seed.ts",
+"seed:full": "npx tsx scripts/seed-database.ts",
+"seed:supabase-auth": "npx tsx scripts/seed-supabase-auth.ts",
+"seed:all": "npx tsx scripts/run-seed.ts",
+"seed:simulate": "bash scripts/simulate-user-actions.sh"
 ```
 
 ## Database Schema Impact

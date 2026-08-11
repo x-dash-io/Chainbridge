@@ -26,11 +26,21 @@ export async function getUser(): Promise<AuthUser> {
     redirect("/login");
   }
 
-  const [user] = await db
+  // Try to find user by ID first (for cases where IDs match)
+  let [user] = await db
     .select()
     .from(users)
     .where(eq(users.id, authUser.id))
     .limit(1);
+
+  // If not found by ID, try to find by email (for seeded users)
+  if (!user && authUser.email) {
+    [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, authUser.email))
+      .limit(1);
+  }
 
   if (!user) {
     redirect("/login");

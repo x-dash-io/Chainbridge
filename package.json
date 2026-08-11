@@ -17,6 +17,7 @@
     "seed:download-images": "npx tsx scripts/download-images.ts",
     "seed:database": "npx tsx scripts/quick-seed.ts",
     "seed:full": "npx tsx scripts/seed-database.ts",
+    "seed:supabase-auth": "npx tsx scripts/seed-supabase-auth.ts",
     "seed:all": "npx tsx scripts/run-seed.ts",
     "seed:simulate": "bash scripts/simulate-user-actions.sh"
   },

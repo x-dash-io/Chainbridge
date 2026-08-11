@@ -15,16 +15,16 @@ function uuidv4(): string {
 
 // Configuration
 const USERS_PER_ROLE = 5;
-const DOMAIN = 'chaibridge.com';
+const DOMAIN = 'chainbridge.co.ke';
 const MONTHS_TO_SIMULATE = 2;
 const ORDER_COMPLETION_RATE = 0.7;
 
 // User roles
 const ROLES = ['producer', 'processor', 'packer', 'delivery_agent', 'retailer', 'consumer', 'admin'] as const;
 
-// Realistic data for users
-const FIRST_NAMES = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen'];
-const LAST_NAMES = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
+// Realistic Kenyan data for users
+const FIRST_NAMES = ['Wanjiku', 'Kamau', 'Njeri', 'Ochieng', 'Akinyi', 'Mutua', 'Wambui', 'Omondi', 'Nyokabi', 'Kipchoge', 'Chebet', 'Korir', 'Juma', 'Mwangi', 'Wanjiru', 'Otieno', 'Achieng', 'Kiprono', 'Chepngeno', 'Kimani', 'Njoroge', 'Muthoni', 'Mbugua', 'Nyakio', 'Kiplagat', 'Jepkemei', 'Kiptoo', 'Mandela', 'Safari', 'Zawadi'];
+const LAST_NAMES = ['Mwangi', 'Wanjiku', 'Omondi', 'Njoroge', 'Kamau', 'Wambui', 'Mutua', 'Akinyi', 'Ochieng', 'Njeri', 'Kimani', 'Muthoni', 'Otieno', 'Chebet', 'Korir', 'Kipchoge', 'Wanjiru', 'Juma', 'Nyokabi', 'Mbugua', 'Kiprono', 'Chepngeno', 'Mandela', 'Safari', 'Zawadi', 'Jepkemei', 'Kiplagat', 'Kiptoo', 'Achieng', 'Nyakio'];
 
 // Agricultural products
 const AGRICULTURAL_PRODUCTS = [
@@ -526,6 +526,12 @@ async function generateAuditLogs(userMap: Map<string, any[]>) {
   console.log('Generating audit logs...');
   
   const allUsers = Object.values(userMap).flat();
+  
+  if (allUsers.length === 0) {
+    console.log('No users found, skipping audit logs');
+    return;
+  }
+  
   const eventTypes = [
     'user_login',
     'product_created',
@@ -589,8 +595,15 @@ async function seedDatabase() {
     // Generate disputes
     await generateDisputes(userMap, allOrders);
     
+    // Get all users for audit logs
+    const allUsersForAudit = await db.select().from(users);
+    const userMapForAudit = new Map<string, any[]>();
+    for (const role of ROLES) {
+      userMapForAudit.set(role, allUsersForAudit.filter((u: any) => u.role === role));
+    }
+    
     // Generate audit logs
-    await generateAuditLogs(userMap);
+    await generateAuditLogs(userMapForAudit);
     
     console.log('===========================');
     console.log('Database seeding completed successfully!');

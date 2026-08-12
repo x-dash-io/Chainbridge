@@ -10,7 +10,7 @@ The password reset feature uses Supabase Auth's built-in email functionality. Th
 
 ### 1. Local Development
 
-Your `.env` file should contain:
+The `.env` file should contain:
 
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -20,7 +20,7 @@ This ensures that password reset emails will redirect to `http://localhost:3000/
 
 ### 2. Production (Vercel)
 
-In your Vercel project settings, add the environment variable:
+In the Vercel project settings, add the environment variable:
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://chainbridge-two.vercel.app
@@ -42,9 +42,9 @@ The password reset system uses a priority-based URL detection:
 
 ### Email Templates
 
-Configure your Supabase email templates in the Supabase dashboard:
+Configure the Supabase email templates in the Supabase dashboard:
 
-1. Go to your Supabase project
+1. Go to the Supabase project
 2. Navigate to Authentication → Email Templates
 3. Configure the "Reset Password" template
 
@@ -60,9 +60,9 @@ Configure your Supabase email templates in the Supabase dashboard:
 
 ### Site URL Configuration in Supabase
 
-1. Go to your Supabase project
+1. Go to the Supabase project
 2. Navigate to Authentication → URL Configuration
-3. Add your site URLs:
+3. Add the site URLs:
 
 **For Development:**
 - Site URL: `http://localhost:3000`
@@ -76,7 +76,7 @@ Configure your Supabase email templates in the Supabase dashboard:
 
 ### Step 1: Add Environment Variables
 
-In your Vercel project settings, add:
+In the Vercel project settings, add:
 
 ```
 NEXT_PUBLIC_SITE_URL=https://chainbridge-two.vercel.app
@@ -84,7 +84,7 @@ NEXT_PUBLIC_SITE_URL=https://chainbridge-two.vercel.app
 
 ### Step 2: Update Supabase Redirect URLs
 
-Update your Supabase project to include your production domain:
+Update the Supabase project to include the production domain:
 
 1. Go to Supabase Dashboard → Authentication → URL Configuration
 2. Add `https://chainbridge-two.vercel.app` to the allowed redirect URLs
@@ -94,34 +94,34 @@ Update your Supabase project to include your production domain:
 
 1. Deploy to Vercel
 2. Navigate to `https://chainbridge-two.vercel.app/forgot-password`
-3. Enter your email
-4. Check your email for the reset link
+3. Enter the email
+4. Check the email for the reset link
 5. Click the link and verify it redirects to `https://chainbridge-two.vercel.app/reset-password`
 
 ## Testing Locally
 
 ### Test Password Reset Flow
 
-1. Start your development server:
+1. Start the development server:
    ```bash
    npm run dev
    ```
 
 2. Navigate to `http://localhost:3000/forgot-password`
 
-3. Enter your test email (use one of the seeded user emails)
+3. Enter a test email (use one of the seeded user emails)
 
-4. Check your email for the reset link
+4. Check the email for the reset link
 
 5. Click the link and verify it redirects to `http://localhost:3000/reset-password`
 
-6. Enter your new password
+6. Enter the new password
 
-7. Verify you can login with the new password
+7. Verify login works with the new password
 
 ### Using Seeded Users
 
-You can test with the seeded users from `SEEDED_USER_CREDENTIALS.md`:
+Test with the seeded users from `SEEDED_USER_CREDENTIALS.md`:
 
 ```
 Email: linda.martinez@chaibridge.com
@@ -132,21 +132,21 @@ Password: password123
 
 ### Issue: Reset link redirects to wrong domain
 
-**Solution:** Check that `NEXT_PUBLIC_SITE_URL=https://chainbridge-two.vercel.app` is set correctly in your Vercel environment variables.
+**Solution:** Check that `NEXT_PUBLIC_SITE_URL=https://chainbridge-two.vercel.app` is set correctly in the Vercel environment variables.
 
 ### Issue: Emails not being sent
 
 **Solution:** 
-- Verify your Supabase email settings are configured
+- Verify the Supabase email settings are configured
 - Check the Supabase dashboard for email delivery logs
-- Ensure your email templates are properly configured
+- Ensure the email templates are properly configured
 
 ### Issue: "Your reset link has expired or is invalid"
 
 **Solution:** 
 - Reset links expire after 1 hour by default
 - Request a new reset link
-- Check that your redirect URLs are configured correctly in Supabase
+- Check that the redirect URLs are configured correctly in Supabase
 
 ### Issue: Rate limiting preventing reset
 
@@ -198,7 +198,7 @@ Before deploying to production, verify:
 
 ## Support
 
-If you encounter issues:
+If issues are encountered:
 
 1. Check the browser console for JavaScript errors
 2. Check the server logs for authentication errors

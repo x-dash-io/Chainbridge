@@ -55,7 +55,7 @@ npx tsx scripts/quick-seed.ts
 ```
 
 **Data characteristics:**
-- Users: 5 per role using @chaibridge.com emails (adds to existing if any)
+- Users: 5 per role using @chainbridge.co.ke emails (adds to existing if any)
 - Products: 3-8 per producer, 2-5 per retailer
 - Orders: 2-8 per day over 60 days (180-480 total orders)
 - Completion rate: 70% completed, 30% in various states
@@ -146,7 +146,7 @@ npm run seed:simulate
 ## Data Characteristics
 
 ### Users
-- **Email format:** `firstname.lastname@chaibridge.com`
+- **Email format:** `firstname.lastname@chainbridge.co.ke`
 - **Phone numbers:** Kenyan format (+254...)
 - **Verification status:** 70% verified
 - **Creation dates:** Spread over 60 days

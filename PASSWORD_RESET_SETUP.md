@@ -124,7 +124,7 @@ Update the Supabase project to include the production domain:
 Test with the seeded users from `SEEDED_USER_CREDENTIALS.md`:
 
 ```
-Email: linda.martinez@chaibridge.com
+Email: linda.martinez@chainbridge.co.ke
 Password: password123
 ```
 

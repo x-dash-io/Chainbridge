@@ -239,7 +239,7 @@ All significant actions are logged:
 2. Run `npm run seed:supabase-auth` to create Supabase Auth users
 3. System creates 94 users across all roles
 4. Users have realistic Kenyan names and phone numbers
-5. Email addresses use @chaibridge.com domain
+5. Email addresses use @chainbridge.co.ke domain
 6. All users share default password: `password123`
 
 **Seeded Data Includes:**

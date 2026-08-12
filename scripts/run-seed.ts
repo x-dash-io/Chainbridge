@@ -48,7 +48,7 @@ async function main() {
     console.log('🎉 Seeding process completed successfully!');
     console.log('\nNext steps:');
     console.log('1. Start the development server: npm run dev');
-    console.log('2. Login with one of the seeded users (e.g., james.smith@chaibridge.com)');
+    console.log('2. Login with one of the seeded users (e.g., james.smith@chainbridge.co.ke)');
     console.log('3. Explore the dashboards and verify the data');
   } else {
     console.log('⚠️  Seeding process completed with some errors');

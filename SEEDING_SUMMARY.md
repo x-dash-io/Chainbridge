@@ -8,7 +8,7 @@ I've successfully created a comprehensive seed script system for Chainbridge tha
 
 ### 1. scripts/quick-seed.ts (Recommended)
 - Main seeding script that handles existing data gracefully
-- Creates 35 users (5 per role) with realistic @chaibridge.com emails
+- Creates 35 users (5 per role) with realistic @chainbridge.co.ke emails
 - Generates agricultural products for producers
 - Generates manufactured products for retailers  
 - Creates orders spread over 60 days with realistic progression
@@ -46,7 +46,7 @@ I've successfully created a comprehensive seed script system for Chainbridge tha
 
 ### Current Settings
 - **Users per role:** 5 (35 total users)
-- **Email domain:** @chaibridge.com
+- **Email domain:** @chainbridge.co.ke
 - **Simulation period:** 2 months (60 days)
 - **Order completion rate:** 70%
 - **Orders per day:** 2-8 (180-480 total orders)
@@ -100,7 +100,7 @@ npm run seed:simulate
 ## Data Characteristics
 
 ### Users
-- **Email format:** firstname.lastname@chaibridge.com
+- **Email format:** firstname.lastname@chainbridge.co.ke
 - **Phone numbers:** Kenyan format (+254...)
 - **Verification status:** 70% verified
 - **Creation dates:** Spread over 60 days
@@ -219,9 +219,9 @@ const AGRICULTURAL_PRODUCTS = [
    ```
 
 4. **Login with seeded users:**
-   - Producer: linda.martinez@chaibridge.com
-   - Consumer: jennifer.brown@chaibridge.com
-   - Admin: charles.jackson@chaibridge.com
+   - Producer: linda.martinez@chainbridge.co.ke
+   - Consumer: jennifer.brown@chainbridge.co.ke
+   - Admin: charles.jackson@chainbridge.co.ke
    - Default password: password123
 
 5. **View all user credentials:**

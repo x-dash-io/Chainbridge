@@ -4,7 +4,7 @@
 # This script simulates real user interactions using curl commands
 
 BASE_URL="http://localhost:3000"
-DOMAIN="chaibridge.com"
+DOMAIN="chainbridge.co.ke"
 
 # Colors for output
 GREEN='\033[0;32m'

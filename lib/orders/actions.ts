@@ -102,6 +102,7 @@ export async function getProductsForConsumer() {
       quantityAvailable: products.quantityAvailable,
       sellerId: products.sellerId,
       sellerName: users.name,
+      imageUrl: products.imageUrl,
     })
     .from(products)
     .innerJoin(users, eq(products.sellerId, users.id))

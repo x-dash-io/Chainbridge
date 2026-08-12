@@ -17,6 +17,7 @@ type ProductItem = {
   pricePerUnit: string;
   quantityAvailable: number;
   sellerName: string;
+  imageUrl: string | null;
 };
 
 type ServiceProvider = {
@@ -150,7 +151,7 @@ export function CheckoutFlow({ products, serviceProviders, onOrderCreated }: Pro
               <Card
                 key={product.id}
                   className={cn(
-                    "cursor-pointer transition-all duration-150",
+                    "cursor-pointer overflow-hidden transition-all duration-150",
                     selectedProduct?.id === product.id
                       ? "border-primary ring-1 ring-primary"
                       : "hover:border-border/80 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-[1px]",
@@ -159,6 +160,17 @@ export function CheckoutFlow({ products, serviceProviders, onOrderCreated }: Pro
                   setSelectedProduct(product);
                 }}
               >
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="h-32 w-full rounded-t-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-32 w-full items-center justify-center rounded-t-lg bg-muted/20 text-xs text-muted">
+                    No image
+                  </div>
+                )}
                 <CardHeader>
                   <CardTitle className="text-base">{product.name}</CardTitle>
                   {product.category && (
@@ -527,5 +539,3 @@ function ServiceCard({
     </Card>
   );
 }
-
-

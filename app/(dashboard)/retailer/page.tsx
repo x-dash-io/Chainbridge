@@ -64,6 +64,7 @@ export default async function RetailerDashboard() {
           pricePerUnit: p.pricePerUnit,
           quantityAvailable: p.quantityAvailable,
           sellerName: p.sellerName,
+          imageUrl: p.imageUrl,
         }))}
         serviceProviders={serviceProviders}
         sourcingOrders={sourcingOrders}

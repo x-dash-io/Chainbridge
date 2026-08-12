@@ -63,7 +63,18 @@ function ProductCard({
         : "neutral";
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="h-40 w-full rounded-t-lg object-cover"
+        />
+      ) : (
+        <div className="flex h-40 w-full items-center justify-center rounded-t-lg bg-muted/20 text-sm text-muted">
+          No image
+        </div>
+      )}
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">

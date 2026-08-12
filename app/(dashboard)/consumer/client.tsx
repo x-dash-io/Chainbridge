@@ -14,6 +14,7 @@ type ProductItem = {
   pricePerUnit: string;
   quantityAvailable: number;
   sellerName: string;
+  imageUrl: string | null;
 };
 
 type ServiceProvider = {

@@ -18,6 +18,7 @@ export default async function ConsumerDashboard() {
       quantityAvailable: products.quantityAvailable,
       sellerId: products.sellerId,
       sellerName: users.name,
+      imageUrl: products.imageUrl,
     })
     .from(products)
     .innerJoin(users, eq(products.sellerId, users.id))
@@ -192,6 +193,7 @@ export default async function ConsumerDashboard() {
           pricePerUnit: p.pricePerUnit,
           quantityAvailable: p.quantityAvailable,
           sellerName: p.sellerName,
+          imageUrl: p.imageUrl,
         }))}
         serviceProviders={{
           processors: serviceProviders.filter((s) => s.role === "processor"),
